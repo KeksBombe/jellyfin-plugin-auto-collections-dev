@@ -722,37 +722,85 @@ namespace Jellyfin.Plugin.AutoCollections
                 await ProcessCollectionMediaItems(collection, legacyMediaItems, isNewCollection);
                 return;
             }
-            
-            // Process with multiple filter conditions
-            List<Movie> resultMovies = new List<Movie>();
+              List<Movie> resultMovies = new List<Movie>();
             List<Series> resultSeries = new List<Series>();
             
-            if (titleMatchPair.LogicalOperator == Configuration.LogicalOperator.And)
+            // Check if we have the new filter expression model
+            if (titleMatchPair.FilterExpression != null && titleMatchPair.FilterExpression.Items.Any())
             {
-                // AND mode - all conditions must match
-                _logger.LogInformation($"Using AND mode to combine {titleMatchPair.FilterConditions.Count} filters for collection: {collectionName}");
+                _logger.LogInformation($"Using filter expression for collection: {collectionName}");
                 
-                // Get results from first filter condition
-                if (titleMatchPair.FilterConditions.Count > 0)
+                // Process the root filter group
+                (List<Movie> movies, List<Series> series) = ProcessFilterGroup(titleMatchPair.FilterExpression);
+                resultMovies = movies;
+                resultSeries = series;
+            }
+            // Fall back to legacy filter conditions if no expression is defined
+            else if (titleMatchPair.FilterConditions != null && titleMatchPair.FilterConditions.Any())
+            {
+                if (titleMatchPair.LogicalOperator == Configuration.LogicalOperator.And)
                 {
-                    var firstCondition = titleMatchPair.FilterConditions[0];
+                    // AND mode - all conditions must match
+                    _logger.LogInformation($"Using AND mode to combine {titleMatchPair.FilterConditions.Count} filters for collection: {collectionName}");
                     
-                    resultMovies = GetMoviesFromLibraryByMatch(
-                        firstCondition.MatchValue,
-                        firstCondition.CaseSensitive,
-                        firstCondition.MatchType
-                    ).ToList();
-                    
-                    resultSeries = GetSeriesFromLibraryByMatch(
-                        firstCondition.MatchValue,
-                        firstCondition.CaseSensitive,
-                        firstCondition.MatchType
-                    ).ToList();
-                    
-                    // Apply additional filter conditions (intersection)
-                    for (int i = 1; i < titleMatchPair.FilterConditions.Count; i++)
+                    // Get results from first filter condition
+                    if (titleMatchPair.FilterConditions.Count > 0)
                     {
-                        var condition = titleMatchPair.FilterConditions[i];
+                        var firstCondition = titleMatchPair.FilterConditions[0];
+                        
+                        resultMovies = GetMoviesFromLibraryByMatch(
+                            firstCondition.MatchValue,
+                            firstCondition.CaseSensitive,
+                            firstCondition.MatchType
+                        ).ToList();
+                        
+                        resultSeries = GetSeriesFromLibraryByMatch(
+                            firstCondition.MatchValue,
+                            firstCondition.CaseSensitive,
+                            firstCondition.MatchType
+                        ).ToList();
+                        
+                        // Apply additional filter conditions (intersection)
+                        for (int i = 1; i < titleMatchPair.FilterConditions.Count; i++)
+                        {
+                            var condition = titleMatchPair.FilterConditions[i];
+                            
+                            var matchingMovies = GetMoviesFromLibraryByMatch(
+                                condition.MatchValue,
+                                condition.CaseSensitive,
+                                condition.MatchType
+                            ).ToList();
+                            
+                            var matchingSeries = GetSeriesFromLibraryByMatch(
+                                condition.MatchValue,
+                                condition.CaseSensitive,
+                                condition.MatchType
+                            ).ToList();
+                            
+                            // Keep only the items that are in both collections (intersection)
+                            resultMovies = resultMovies.Where(movie => matchingMovies.Any(m => m.Id == movie.Id)).ToList();
+                            resultSeries = resultSeries.Where(series => matchingSeries.Any(s => s.Id == series.Id)).ToList();
+                        }
+                    }
+                }
+                else
+                {
+                    // OR mode - any condition can match
+                    _logger.LogInformation($"Using OR mode to combine {titleMatchPair.FilterConditions.Count} filters for collection: {collectionName}");
+                    
+                    foreach (var condition in titleMatchPair.FilterConditions)
+                    {
+                        string matchTypeText = condition.MatchType switch
+                        {
+                            Configuration.MatchType.Title => "title",
+                            Configuration.MatchType.Genre => "genre",
+                            Configuration.MatchType.Studio => "studio",
+                            Configuration.MatchType.Actor => "actor",
+                            Configuration.MatchType.Director => "director",
+                            _ => "title"
+                        };
+                        
+                        _logger.LogInformation($"Processing filter condition: {matchTypeText} match for '{condition.MatchValue}'");
                         
                         var matchingMovies = GetMoviesFromLibraryByMatch(
                             condition.MatchValue,
@@ -766,19 +814,40 @@ namespace Jellyfin.Plugin.AutoCollections
                             condition.MatchType
                         ).ToList();
                         
-                        // Keep only the items that are in both collections (intersection)
-                        resultMovies = resultMovies.Where(movie => matchingMovies.Any(m => m.Id == movie.Id)).ToList();
-                        resultSeries = resultSeries.Where(series => matchingSeries.Any(s => s.Id == series.Id)).ToList();
+                        // Add all matches to our results (union)
+                        resultMovies.AddRange(matchingMovies);
+                        resultSeries.AddRange(matchingSeries);
                     }
+                    
+                    // Remove duplicates
+                    resultMovies = resultMovies.Distinct().ToList();
+                    resultSeries = resultSeries.Distinct().ToList();
                 }
             }
-            else
+            
+            _logger.LogInformation($"Found {resultMovies.Count} movies and {resultSeries.Count} series total for collection: {collectionName}");
+            
+            // Combine movies and series into a single list
+            var combinedMediaItems = resultMovies.Cast<BaseItem>().Concat(resultSeries.Cast<BaseItem>()).ToList();
+
+            await ProcessCollectionMediaItems(collection, combinedMediaItems, isNewCollection);
+        }        // Recursively processes a filter group expression
+        private (List<Movie> Movies, List<Series> Series) ProcessFilterGroup(Configuration.FilterGroupExpression group)
+        {
+            var results = new List<(List<Movie> Movies, List<Series> Series)>();
+            
+            // Process all child expressions
+            foreach (var item in group.Items)
             {
-                // OR mode - any condition can match
-                _logger.LogInformation($"Using OR mode to combine {titleMatchPair.FilterConditions.Count} filters for collection: {collectionName}");
-                
-                foreach (var condition in titleMatchPair.FilterConditions)
+                if (item.Type == Configuration.ExpressionItemType.Condition)
                 {
+                    // Process a single condition
+                    var conditionExpr = item as Configuration.FilterConditionExpression;
+                    if (conditionExpr == null) continue;
+                    
+                    var condition = conditionExpr.Condition;
+                    
+                    // Log the condition being processed
                     string matchTypeText = condition.MatchType switch
                     {
                         Configuration.MatchType.Title => "title",
@@ -791,36 +860,78 @@ namespace Jellyfin.Plugin.AutoCollections
                     
                     _logger.LogInformation($"Processing filter condition: {matchTypeText} match for '{condition.MatchValue}'");
                     
-                    var matchingMovies = GetMoviesFromLibraryByMatch(
+                    // Get matching items
+                    var movies = GetMoviesFromLibraryByMatch(
                         condition.MatchValue,
                         condition.CaseSensitive,
                         condition.MatchType
                     ).ToList();
                     
-                    var matchingSeries = GetSeriesFromLibraryByMatch(
+                    var series = GetSeriesFromLibraryByMatch(
                         condition.MatchValue,
                         condition.CaseSensitive,
                         condition.MatchType
                     ).ToList();
                     
-                    // Add all matches to our results (union)
-                    resultMovies.AddRange(matchingMovies);
-                    resultSeries.AddRange(matchingSeries);
+                    results.Add((movies, series));
                 }
+                else if (item.Type == Configuration.ExpressionItemType.Group)
+                {
+                    // Process a nested group recursively
+                    var subGroup = item as Configuration.FilterGroupExpression;
+                    if (subGroup == null) continue;
+                    
+                    _logger.LogInformation($"Processing nested filter group with {subGroup.Items.Count} items and operator {subGroup.Operator}");
+                    
+                    var (movies, series) = ProcessFilterGroup(subGroup);
+                    results.Add((movies, series));
+                }
+            }
+            
+            // No results to combine
+            if (results.Count == 0)
+            {
+                return (new List<Movie>(), new List<Series>());
+            }
+            
+            // Start with first result
+            var resultMovies = results[0].Movies.ToList();
+            var resultSeries = results[0].Series.ToList();
+            
+            // Combine results based on logical operator
+            for (int i = 1; i < results.Count; i++)
+            {
+                var current = results[i];
                 
-                // Remove duplicates
+                if (group.Operator == Configuration.LogicalOperator.And)
+                {
+                    // AND operation: keep only items common to both sets (intersection)
+                    resultMovies = resultMovies
+                        .Where(movie => current.Movies.Any(m => m.Id == movie.Id))
+                        .ToList();
+                    
+                    resultSeries = resultSeries
+                        .Where(series => current.Series.Any(s => s.Id == series.Id))
+                        .ToList();
+                }
+                else
+                {
+                    // OR operation: include all items from both sets (union)
+                    resultMovies.AddRange(current.Movies);
+                    resultSeries.AddRange(current.Series);
+                }
+            }
+            
+            // If using OR, make sure to remove duplicates
+            if (group.Operator == Configuration.LogicalOperator.Or)
+            {
                 resultMovies = resultMovies.Distinct().ToList();
                 resultSeries = resultSeries.Distinct().ToList();
             }
             
-            _logger.LogInformation($"Found {resultMovies.Count} movies and {resultSeries.Count} series total for collection: {collectionName}");
-            
-            // Combine movies and series into a single list
-            var combinedMediaItems = resultMovies.Cast<BaseItem>().Concat(resultSeries.Cast<BaseItem>()).ToList();
-
-            await ProcessCollectionMediaItems(collection, combinedMediaItems, isNewCollection);
+            return (resultMovies, resultSeries);
         }
-
+        
         private void OnTimerElapsed()
         {
             // Stop the timer until next update

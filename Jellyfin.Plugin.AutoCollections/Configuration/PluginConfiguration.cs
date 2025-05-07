@@ -12,6 +12,12 @@ namespace Jellyfin.Plugin.AutoCollections.Configuration
         And = 1  // All conditions must match
     }
     
+    // Expression item type - can be a filter condition or a group
+    public enum ExpressionItemType
+    {
+        Condition = 0, // A single filter condition
+        Group = 1     // A group of conditions (with its own operator)
+    }
     // Kept for backward compatibility
     public enum TagMatchingMode
     {
@@ -72,9 +78,7 @@ namespace Jellyfin.Plugin.AutoCollections.Configuration
         Studio = 2,  // Match by studio
         Actor = 3,   // Match by actor
         Director = 4 // Match by director
-    }
-
-    // Represents a single filter condition
+    }    // Represents a single filter condition
     public class FilterCondition
     {
         public string MatchValue { get; set; }
@@ -96,16 +100,61 @@ namespace Jellyfin.Plugin.AutoCollections.Configuration
             MatchType = matchType;
         }
     }
-
-    // Class for match-based collections (previously title-based only)
+    
+    // Base class for filter expressions (conditions or groups)
+    public abstract class FilterExpression
+    {
+        public ExpressionItemType Type { get; set; }
+        
+        protected FilterExpression(ExpressionItemType type)
+        {
+            Type = type;
+        }
+    }
+    
+    // A filter expression that represents a single condition
+    public class FilterConditionExpression : FilterExpression
+    {
+        public FilterCondition Condition { get; set; }
+        
+        public FilterConditionExpression() : base(ExpressionItemType.Condition)
+        {
+            Condition = new FilterCondition();
+        }
+        
+        public FilterConditionExpression(FilterCondition condition) : base(ExpressionItemType.Condition)
+        {
+            Condition = condition ?? new FilterCondition();
+        }
+    }
+    
+    // A filter expression that represents a group of conditions or other groups
+    public class FilterGroupExpression : FilterExpression
+    {
+        public List<FilterExpression> Items { get; set; }
+        public LogicalOperator Operator { get; set; }
+        
+        public FilterGroupExpression() : base(ExpressionItemType.Group)
+        {
+            Items = new List<FilterExpression>();
+            Operator = LogicalOperator.Or; // Default to OR
+        }
+        
+        public FilterGroupExpression(LogicalOperator op) : base(ExpressionItemType.Group)
+        {
+            Items = new List<FilterExpression>();
+            Operator = op;
+        }
+    }    // Class for match-based collections (previously title-based only)
     public class TitleMatchPair
     {
         public string TitleMatch { get; set; } // Kept for backward compatibility
         public string CollectionName { get; set; }
         public bool CaseSensitive { get; set; } // Kept for backward compatibility
         public MatchType MatchType { get; set; } // Kept for backward compatibility
-        public List<FilterCondition> FilterConditions { get; set; }
-        public LogicalOperator LogicalOperator { get; set; } // How to combine filter conditions (AND/OR)
+        public List<FilterCondition> FilterConditions { get; set; } // Kept for backward compatibility
+        public LogicalOperator LogicalOperator { get; set; } // Kept for backward compatibility (how to combine filter conditions)
+        public FilterGroupExpression FilterExpression { get; set; } // New model with support for nested groups and complex expressions
 
         // Add parameterless constructor for XML serialization
         public TitleMatchPair()
@@ -116,6 +165,7 @@ namespace Jellyfin.Plugin.AutoCollections.Configuration
             MatchType = MatchType.Title; // Default to title matching for backward compatibility
             FilterConditions = new List<FilterCondition>();
             LogicalOperator = LogicalOperator.Or; // Default to OR for backward compatibility
+            FilterExpression = new FilterGroupExpression(); // Initialize with empty root group
         }
 
         public TitleMatchPair(string titleMatch, string collectionName = null, bool caseSensitive = false, MatchType matchType = MatchType.Title)
@@ -131,6 +181,13 @@ namespace Jellyfin.Plugin.AutoCollections.Configuration
                 new FilterCondition(titleMatch, caseSensitive, matchType)
             };
             LogicalOperator = LogicalOperator.Or;
+            
+            // Initialize with a root group containing a single condition
+            var condition = new FilterCondition(titleMatch, caseSensitive, matchType);
+            var conditionExpr = new FilterConditionExpression(condition);
+            
+            FilterExpression = new FilterGroupExpression(LogicalOperator.Or);
+            FilterExpression.Items.Add(conditionExpr);
         }private static string GetDefaultCollectionName(string matchString, MatchType matchType)
         {
             if (string.IsNullOrEmpty(matchString))
