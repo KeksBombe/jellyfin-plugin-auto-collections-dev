@@ -6,20 +6,47 @@
     .title-match-container {
         margin-bottom: 10px;
         display: flex;
+        flex-direction: column;
+        padding: 15px;
+        background-color: rgba(0,0,0,0.05);
+        border-radius: 4px;
+      }
+      .collection-header {
+        display: flex;
         align-items: center;
+        margin-bottom: 15px;
+      }
+      .collection-name-input {
+        flex: 1;
+        margin-right: 10px;
+      }
+      .logical-operator-container {
+        margin-right: 10px;
+        display: flex;
+        align-items: center;
+      }
+      .operator-label {
+        white-space: nowrap;
+        margin-right: 5px;
+      }
+      .filter-condition {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+        flex-wrap: wrap;
+        padding: 8px;
+        background-color: rgba(0,0,0,0.03);
+        border-radius: 4px;
       }
       .match-type-container {
         width: 100px;
         margin-right: 10px;
+        flex: 0 0 100px;
       }
       .match-type-select {
         width: 100%;
       }
       .title-match-input {
-        flex: 1;
-        margin-right: 10px;
-      }
-      .collection-name-input {
         flex: 1;
         margin-right: 10px;
       }
@@ -35,12 +62,20 @@
       .add-title-match-button {
         margin-bottom: 15px;
       }
+      .add-condition-button {
+        margin-top: 5px;
+        margin-bottom: 10px;
+        align-self: flex-start;
+      }
       .remove-button {
         margin-left: 10px;
         min-width: 40px;
       }
       #title-match-pairs {
         margin-bottom: 20px;
+      }
+      .filter-conditions {
+        width: 100%;
       }
       .help-text {
         font-size: 0.9em;
@@ -70,9 +105,8 @@
               >Help</a>
             </div>
             <div class="verticalSection">
-              <div class="inputContainer">
-                <label class="inputLabel inputLabelUnfocused" for="title-match-pairs">Auto Collections:</label>
-                <div class="help-text">Create collections based on a string match. Select the type (Title, Studio, Genre, Actor, or Director), enter the string to match, and provide an collection name.</div>
+              <div class="inputContainer">                <label class="inputLabel inputLabelUnfocused" for="title-match-pairs">Auto Collections:</label>
+                <div class="help-text">Create collections based on multiple filter conditions. You can combine filters using either "AND" (all conditions must match) or "OR" (any condition can match). Select the type (Title, Studio, Genre, Actor, or Director), enter the string to match, and provide a collection name.</div>
                 <div id="title-match-pairs"></div>
               </div>
               
@@ -106,26 +140,15 @@
             </button>
           </form>
         </div>
-      </div>
-
-      <script type="text/javascript" defer>
-        function createTitleMatchPairElement(titleMatch = '', collectionName = '', caseSensitive = false, matchType = 0) {
-          const container = document.createElement('div');
-          container.className = 'title-match-container';
-          container.style.display = 'flex';
-          container.style.flexWrap = 'wrap';
-          container.style.alignItems = 'center';
-          container.style.padding = '8px';
-          container.style.marginBottom = '10px';
-          container.style.borderRadius = '4px';
-          container.style.backgroundColor = 'rgba(0,0,0,0.05)';
-            
+      </div>      <script type="text/javascript" defer>
+        // Function to create a single filter condition element
+        function createFilterConditionElement(matchValue = '', caseSensitive = false, matchType = 0) {
+          const conditionContainer = document.createElement('div');
+          conditionContainer.className = 'filter-condition';
+          
           // Create match type dropdown
           const matchTypeContainer = document.createElement('div');
           matchTypeContainer.className = 'match-type-container';
-          matchTypeContainer.style.marginRight = '10px';
-          matchTypeContainer.style.minWidth = '100px';
-          matchTypeContainer.style.flex = '0 0 100px';
           
           const matchTypeSelect = document.createElement('select');
           matchTypeSelect.is = 'emby-select';
@@ -154,19 +177,10 @@
           
           matchTypeContainer.appendChild(matchTypeSelect);
           
-          // This ensures the Emby select component is properly initialized
-          setTimeout(() => {
-            if (matchTypeSelect.embyInit) {
-              matchTypeSelect.embyInit();
-            } else if (window.EmbyWebComponents && window.EmbyWebComponents.autoFocus) {
-              window.EmbyWebComponents.autoFocus(matchTypeSelect.parentNode);
-            }
-          }, 0);
-            
           // Create a dynamic update for the placeholder text based on the selected match type
           const updatePlaceholder = (select) => {
             const matchType = parseInt(select.value, 10);
-            const input = container.querySelector('.title-match-input');
+            const input = conditionContainer.querySelector('.title-match-input');
             if (input) {
               switch(matchType) {
                 case 1: // Genre
@@ -192,6 +206,7 @@
             updatePlaceholder(matchTypeSelect);
           });
             
+          // Create match value input
           const titleMatchContainer = document.createElement('div');
           titleMatchContainer.style.flex = '1 1 200px';
           titleMatchContainer.style.marginRight = '10px';
@@ -202,26 +217,12 @@
           titleMatchInput.className = 'title-match-input';
           titleMatchInput.style.width = '100%';
           titleMatchInput.placeholder = 'Match String';
-          titleMatchInput.value = titleMatch;
+          titleMatchInput.value = matchValue;
           
           titleMatchContainer.appendChild(titleMatchInput);
           
           // Set initial placeholder based on match type
           setTimeout(() => updatePlaceholder(matchTypeSelect), 0);
-            
-          const collectionNameContainer = document.createElement('div');
-          collectionNameContainer.style.flex = '1 1 200px';
-          collectionNameContainer.style.marginRight = '10px';
-          
-          const collectionNameInput = document.createElement('input');
-          collectionNameInput.is = 'emby-input';
-          collectionNameInput.type = 'text';
-          collectionNameInput.className = 'collection-name-input';
-          collectionNameInput.style.width = '100%';
-          collectionNameInput.placeholder = 'Collection Name';
-          collectionNameInput.value = collectionName;
-          
-          collectionNameContainer.appendChild(collectionNameInput);
             
           // Create case-sensitive checkbox
           const caseCheckContainer = document.createElement('div');
@@ -229,7 +230,6 @@
           caseCheckContainer.style.flex = '0 0 auto';
           caseCheckContainer.style.display = 'flex';
           caseCheckContainer.style.alignItems = 'center';
-          caseCheckContainer.style.marginRight = '10px';
           
           const caseCheckboxWrapper = document.createElement('div');
           caseCheckboxWrapper.style.marginRight = '5px';
@@ -250,6 +250,7 @@
           caseCheckContainer.appendChild(caseCheckboxWrapper);
           caseCheckContainer.appendChild(caseLabel);
             
+          // Create remove button for this condition
           const removeButton = document.createElement('button');
           removeButton.is = 'emby-button';
           removeButton.type = 'button';
@@ -260,18 +261,178 @@
           removeButton.style.height = '32px';
           removeButton.style.padding = '0';
           removeButton.style.borderRadius = '50%';
+          
+          // Initialize the Emby components
+          setTimeout(() => {
+            if (matchTypeSelect.embyInit) {
+              matchTypeSelect.embyInit();
+            } else if (window.EmbyWebComponents && window.EmbyWebComponents.autoFocus) {
+              window.EmbyWebComponents.autoFocus(matchTypeSelect.parentNode);
+            }
+          }, 0);
+          
+          // Add all components to condition container
+          conditionContainer.appendChild(matchTypeContainer);
+          conditionContainer.appendChild(titleMatchContainer);
+          conditionContainer.appendChild(caseCheckContainer);
+          conditionContainer.appendChild(removeButton);
+          
+          removeButton.onclick = function() {
+            // Don't allow removing the last condition
+            const parent = conditionContainer.parentElement;
+            if (parent && parent.querySelectorAll('.filter-condition').length > 1) {
+              conditionContainer.remove();
+            } else {
+              alert("Cannot remove the last condition. Every collection needs at least one condition.");
+            }
+          };
+          
+          return conditionContainer;
+        }
+        
+        // Function to create a title match pair element (collection with multiple filters)
+        function createTitleMatchPairElement(collectionName = '', logicalOperator = 0, filters = []) {
+          const container = document.createElement('div');
+          container.className = 'title-match-container';
+          
+          // Create the collection header (name and logical operator)
+          const collectionHeader = document.createElement('div');
+          collectionHeader.className = 'collection-header';
+          
+          // Collection name input
+          const collectionNameContainer = document.createElement('div');
+          collectionNameContainer.style.flex = '1';
+          
+          const collectionNameInput = document.createElement('input');
+          collectionNameInput.is = 'emby-input';
+          collectionNameInput.type = 'text';
+          collectionNameInput.className = 'collection-name-input';
+          collectionNameInput.style.width = '100%';
+          collectionNameInput.placeholder = 'Collection Name';
+          collectionNameInput.value = collectionName;
+          
+          collectionNameContainer.appendChild(collectionNameInput);
+          
+          // Logical operator selector (AND/OR)
+          const operatorContainer = document.createElement('div');
+          operatorContainer.className = 'logical-operator-container';
+          
+          const operatorLabel = document.createElement('label');
+          operatorLabel.className = 'operator-label';
+          operatorLabel.textContent = 'Combine filters with:';
+          
+          const operatorSelect = document.createElement('select');
+          operatorSelect.is = 'emby-select';
+          operatorSelect.className = 'logical-operator-select';
+          operatorSelect.style.marginLeft = '5px';
+          
+          const orOption = document.createElement('option');
+          orOption.value = '0';
+          orOption.text = 'OR';
+          operatorSelect.appendChild(orOption);
+          
+          const andOption = document.createElement('option');
+          andOption.value = '1';
+          andOption.text = 'AND';
+          operatorSelect.appendChild(andOption);
+          
+          // Set the selected option based on provided logical operator
+          operatorSelect.value = logicalOperator.toString();
+          
+          operatorContainer.appendChild(operatorLabel);
+          operatorContainer.appendChild(operatorSelect);
+          
+          // Remove collection button
+          const removeButton = document.createElement('button');
+          removeButton.is = 'emby-button';
+          removeButton.type = 'button';
+          removeButton.className = 'remove-button';
+          removeButton.innerHTML = '<span>✕</span>';
+          removeButton.style.minWidth = '32px';
+          removeButton.style.height = '32px';
+          removeButton.style.padding = '0';
+          removeButton.style.borderRadius = '50%';
           removeButton.onclick = function() {
             container.remove();
           };
           
-          // Add all components to container in order
-          container.appendChild(matchTypeContainer);
-          container.appendChild(titleMatchContainer);
-          container.appendChild(collectionNameContainer);
-          container.appendChild(caseCheckContainer);
-          container.appendChild(removeButton);
+          collectionHeader.appendChild(collectionNameContainer);
+          collectionHeader.appendChild(operatorContainer);
+          collectionHeader.appendChild(removeButton);
+          
+          // Container for filter conditions
+          const filterConditionsContainer = document.createElement('div');
+          filterConditionsContainer.className = 'filter-conditions';
+          
+          // If no filters provided, add a default one
+          if (!filters || filters.length === 0) {
+            filterConditionsContainer.appendChild(createFilterConditionElement());
+          } else {
+            // Add each filter condition
+            filters.forEach(filter => {
+              // Convert match type to numeric value if it's a string
+              let matchTypeValue = 0;
+              if (filter.MatchType !== undefined) {
+                if (typeof filter.MatchType === 'string') {
+                  switch (filter.MatchType) {
+                    case "Title": matchTypeValue = 0; break;
+                    case "Genre": matchTypeValue = 1; break;
+                    case "Studio": matchTypeValue = 2; break;
+                    case "Actor": matchTypeValue = 3; break;
+                    case "Director": matchTypeValue = 4; break;
+                    default: matchTypeValue = 0;
+                  }
+                } else if (typeof filter.MatchType === 'number') {
+                  matchTypeValue = filter.MatchType;
+                }
+              }
+              
+              const conditionElement = createFilterConditionElement(
+                filter.MatchValue, 
+                filter.CaseSensitive, 
+                matchTypeValue
+              );
+              filterConditionsContainer.appendChild(conditionElement);
+            });
+          }
+          
+          // Add button to add more conditions
+          const addConditionButton = document.createElement('button');
+          addConditionButton.is = 'emby-button';
+          addConditionButton.type = 'button';
+          addConditionButton.className = 'raised add-condition-button';
+          addConditionButton.innerHTML = '<span>Add Filter Condition</span>';
+          addConditionButton.onclick = function() {
+            filterConditionsContainer.appendChild(createFilterConditionElement());
+          };
+          
+          // Add all components to the main container
+          container.appendChild(collectionHeader);
+          container.appendChild(filterConditionsContainer);
+          container.appendChild(addConditionButton);
+          
+          // Initialize the Emby components
+          setTimeout(() => {
+            if (operatorSelect.embyInit) {
+              operatorSelect.embyInit();
+            } else if (window.EmbyWebComponents && window.EmbyWebComponents.autoFocus) {
+              window.EmbyWebComponents.autoFocus(operatorSelect.parentNode);
+            }
+          }, 0);
           
           return container;
+        }
+        
+        // Function to convert legacy format to new filter format
+        function convertLegacyFormatToFilters(pair) {
+          if (!pair) return [];
+          
+          // Create a single filter condition from the legacy fields
+          return [{
+            MatchValue: pair.TitleMatch || '',
+            CaseSensitive: !!pair.CaseSensitive,
+            MatchType: pair.MatchType
+          }];
         }
         
         function loadConfig() {
@@ -284,51 +445,34 @@
                 
               // Check if we have the TitleMatchPairs property
               if (config.TitleMatchPairs && config.TitleMatchPairs.length > 0) {
-                config.TitleMatchPairs.forEach(pair => {                  // Convert MatchType enum string to numeric value for the dropdown
-                  let matchTypeValue = 0; // Default to Title
-                  if (pair.MatchType !== undefined) {
-                    switch (pair.MatchType) {
-                      case "Title":
-                        matchTypeValue = 0;
-                        break;
-                      case "Genre":
-                        matchTypeValue = 1;
-                        break;
-                      case "Studio":
-                        matchTypeValue = 2;
-                        break;
-                      case "Actor":
-                        matchTypeValue = 3;
-                        break;
-                      case "Director":
-                        matchTypeValue = 4;
-                        break;
-                      // Fallback for numeric values (backward compatibility)
-                      default:
-                        if (typeof pair.MatchType === 'number') {
-                          matchTypeValue = pair.MatchType;
-                        }
-                    }
+                config.TitleMatchPairs.forEach(pair => {
+                  // Check if we have the new format with filter conditions
+                  let filters = pair.FilterConditions || [];
+                  
+                  // If no filter conditions, convert from legacy format
+                  if (filters.length === 0) {
+                    filters = convertLegacyFormatToFilters(pair);
                   }
                   
+                  // Create the collection element with all its filters
                   const element = createTitleMatchPairElement(
-                    pair.TitleMatch, 
-                    pair.CollectionName, 
-                    pair.CaseSensitive, 
-                    matchTypeValue
+                    pair.CollectionName,
+                    pair.LogicalOperator || 0, // Default to OR if not specified
+                    filters
                   );
+                  
                   titleMatchPairsContainer.appendChild(element);
                 });
               } 
               else {
-                // If no configuration exists yet, add one empty row
+                // If no configuration exists yet, add one empty collection
                 const element = createTitleMatchPairElement();
                 titleMatchPairsContainer.appendChild(element);
               }
             })
             .catch(function (error) {
               console.error(error);
-              // Add an empty row if there's an error
+              // Add an empty collection if there's an error
               const element = createTitleMatchPairElement();
               document.querySelector("#title-match-pairs").appendChild(element);
             });
@@ -339,44 +483,65 @@
           const titleMatchPairs = [];
             
           titleMatchContainers.forEach(container => {
-            // Handle our new nested structure
-            const titleMatchInput = container.querySelector('.title-match-input');
+            // Get collection name
             const collectionNameInput = container.querySelector('.collection-name-input');
-            const caseSensitiveCheckbox = container.querySelector('.case-sensitive-checkbox');
-            const matchTypeSelect = container.querySelector('.match-type-select');
-              if (titleMatchInput.value.trim()) {
-              const titleMatch = titleMatchInput.value.trim();
-              const collectionName = collectionNameInput.value.trim();
-              const caseSensitive = caseSensitiveCheckbox.checked;
-              // Convert numeric value to enum string representation
-              const matchTypeValue = parseInt(matchTypeSelect.value, 10);
-              let matchTypeString;
-              switch (matchTypeValue) {
-                case 0:
-                  matchTypeString = "Title";
-                  break;
-                case 1:
-                  matchTypeString = "Genre";
-                  break;
-                case 2:
-                  matchTypeString = "Studio";
-                  break;
-                case 3:
-                  matchTypeString = "Actor";
-                  break;
-                case 4:
-                  matchTypeString = "Director";
-                  break;
-                default:
-                  matchTypeString = "Title";
-              }
+            const collectionName = collectionNameInput.value.trim();
+            
+            // Get logical operator (AND/OR)
+            const operatorSelect = container.querySelector('.logical-operator-select');
+            const logicalOperator = parseInt(operatorSelect.value, 10);
+            
+            // Create an array for filter conditions
+            const filterConditions = [];
+            
+            // Get all filter conditions
+            const conditionElements = container.querySelectorAll('.filter-condition');
+            conditionElements.forEach(conditionEl => {
+              const matchValueInput = conditionEl.querySelector('.title-match-input');
+              const caseSensitiveCheckbox = conditionEl.querySelector('.case-sensitive-checkbox');
+              const matchTypeSelect = conditionEl.querySelector('.match-type-select');
               
-              titleMatchPairs.push({
-                TitleMatch: titleMatch,
-                CollectionName: collectionName || null, // Use null if collection name is empty
-                CaseSensitive: caseSensitive,
-                MatchType: matchTypeString
-              });
+              if (matchValueInput.value.trim()) {
+                const matchValue = matchValueInput.value.trim();
+                const caseSensitive = caseSensitiveCheckbox.checked;
+                const matchTypeValue = parseInt(matchTypeSelect.value, 10);
+                
+                // Convert numeric value to enum string representation
+                let matchTypeString;
+                switch (matchTypeValue) {
+                  case 0: matchTypeString = "Title"; break;
+                  case 1: matchTypeString = "Genre"; break;
+                  case 2: matchTypeString = "Studio"; break;
+                  case 3: matchTypeString = "Actor"; break;
+                  case 4: matchTypeString = "Director"; break;
+                  default: matchTypeString = "Title";
+                }
+                
+                // Add the filter condition
+                filterConditions.push({
+                  MatchValue: matchValue,
+                  CaseSensitive: caseSensitive,
+                  MatchType: matchTypeString
+                });
+              }
+            });
+            
+            // Only add the collection if it has a name and at least one filter condition
+            if (collectionName && filterConditions.length > 0) {
+              // For backward compatibility, also set the TitleMatch and MatchType fields
+              // using the first filter condition
+              const firstCondition = filterConditions[0];
+              
+              const titleMatchPair = {
+                TitleMatch: firstCondition.MatchValue,
+                CollectionName: collectionName,
+                CaseSensitive: firstCondition.CaseSensitive,
+                MatchType: firstCondition.MatchType,
+                FilterConditions: filterConditions,
+                LogicalOperator: logicalOperator
+              };
+              
+              titleMatchPairs.push(titleMatchPair);
             }
           });
           
@@ -397,8 +562,7 @@
               alert("Error saving configuration");
             });
         }
-        
-        function execute() {
+          function execute() {
           var request = {
             url: ApiClient.getUrl("/AutoCollections/AutoCollections"),
             type: "POST"

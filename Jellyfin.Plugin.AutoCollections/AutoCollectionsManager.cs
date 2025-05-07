@@ -664,25 +664,13 @@ namespace Jellyfin.Plugin.AutoCollections
             {
                 _logger.LogInformation("Preserving existing image for collection: {CollectionName}", collectionName);
             }
-        }
-
-        // Executes the auto-collection logic for a single TitleMatchPair.
+        }        // Executes the auto-collection logic for a single TitleMatchPair.
         private async Task ExecuteAutoCollectionsForTitleMatchPair(TitleMatchPair titleMatchPair)
         {
-            string matchTypeText = titleMatchPair.MatchType switch
-            {
-                Configuration.MatchType.Title => "title",
-                Configuration.MatchType.Genre => "genre",
-                Configuration.MatchType.Studio => "studio",
-                Configuration.MatchType.Actor => "actor",
-                Configuration.MatchType.Director => "director",
-                _ => "title"
-            };
-            
-            _logger.LogInformation($"Performing ExecuteAutoCollections for {matchTypeText} match: {titleMatchPair.TitleMatch}");
-            
             // Get the collection name from the match pair
             var collectionName = titleMatchPair.CollectionName;
+            
+            _logger.LogInformation($"Performing ExecuteAutoCollections for collection: {collectionName}");
             
             // Get or create the collection
             var collection = GetBoxSetByName(collectionName);
@@ -700,36 +688,137 @@ namespace Jellyfin.Plugin.AutoCollections
             }
             collection.DisplayOrder = "Default";
             
-            // Find all media items that match the pattern based on match type
-            var allMovies = GetMoviesFromLibraryByMatch(
-                titleMatchPair.TitleMatch, 
-                titleMatchPair.CaseSensitive, 
-                titleMatchPair.MatchType
-            ).ToList();
-            
-            var allSeries = GetSeriesFromLibraryByMatch(
-                titleMatchPair.TitleMatch, 
-                titleMatchPair.CaseSensitive, 
-                titleMatchPair.MatchType
-            ).ToList();
-            
-            _logger.LogInformation($"Found {allMovies.Count} movies and {allSeries.Count} series matching {matchTypeText} pattern '{titleMatchPair.TitleMatch}' for collection: {collectionName}");
-            
-            var mediaItems = allMovies.Cast<BaseItem>().Concat(allSeries.Cast<BaseItem>()).ToList();
-
-            await RemoveUnwantedMediaItems(collection, mediaItems);
-            await AddWantedMediaItems(collection, mediaItems);
-            
-            // Only set the photo for the collection if it's newly created
-            if (isNewCollection && mediaItems.Count > 0)
+            // Check if we need to handle legacy mode (without filter conditions)
+            if (titleMatchPair.FilterConditions == null || titleMatchPair.FilterConditions.Count == 0)
             {
-                _logger.LogInformation("Setting image for newly created collection: {CollectionName}", collectionName);
-                await SetPhotoForCollection(collection, null);
+                // Legacy mode - use the old fields directly
+                string matchTypeText = titleMatchPair.MatchType switch
+                {
+                    Configuration.MatchType.Title => "title",
+                    Configuration.MatchType.Genre => "genre",
+                    Configuration.MatchType.Studio => "studio",
+                    Configuration.MatchType.Actor => "actor",
+                    Configuration.MatchType.Director => "director",
+                    _ => "title"
+                };
+                
+                _logger.LogInformation($"Using legacy filter for {matchTypeText} match: {titleMatchPair.TitleMatch}");
+                
+                var legacyMovies = GetMoviesFromLibraryByMatch(
+                    titleMatchPair.TitleMatch, 
+                    titleMatchPair.CaseSensitive, 
+                    titleMatchPair.MatchType
+                ).ToList();
+                
+                var legacySeries = GetSeriesFromLibraryByMatch(
+                    titleMatchPair.TitleMatch, 
+                    titleMatchPair.CaseSensitive, 
+                    titleMatchPair.MatchType
+                ).ToList();
+                
+                _logger.LogInformation($"Found {legacyMovies.Count} movies and {legacySeries.Count} series matching {matchTypeText} pattern '{titleMatchPair.TitleMatch}' for collection: {collectionName}");
+                
+                var legacyMediaItems = legacyMovies.Cast<BaseItem>().Concat(legacySeries.Cast<BaseItem>()).ToList();
+                await ProcessCollectionMediaItems(collection, legacyMediaItems, isNewCollection);
+                return;
+            }
+            
+            // Process with multiple filter conditions
+            List<Movie> resultMovies = new List<Movie>();
+            List<Series> resultSeries = new List<Series>();
+            
+            if (titleMatchPair.LogicalOperator == Configuration.LogicalOperator.And)
+            {
+                // AND mode - all conditions must match
+                _logger.LogInformation($"Using AND mode to combine {titleMatchPair.FilterConditions.Count} filters for collection: {collectionName}");
+                
+                // Get results from first filter condition
+                if (titleMatchPair.FilterConditions.Count > 0)
+                {
+                    var firstCondition = titleMatchPair.FilterConditions[0];
+                    
+                    resultMovies = GetMoviesFromLibraryByMatch(
+                        firstCondition.MatchValue,
+                        firstCondition.CaseSensitive,
+                        firstCondition.MatchType
+                    ).ToList();
+                    
+                    resultSeries = GetSeriesFromLibraryByMatch(
+                        firstCondition.MatchValue,
+                        firstCondition.CaseSensitive,
+                        firstCondition.MatchType
+                    ).ToList();
+                    
+                    // Apply additional filter conditions (intersection)
+                    for (int i = 1; i < titleMatchPair.FilterConditions.Count; i++)
+                    {
+                        var condition = titleMatchPair.FilterConditions[i];
+                        
+                        var matchingMovies = GetMoviesFromLibraryByMatch(
+                            condition.MatchValue,
+                            condition.CaseSensitive,
+                            condition.MatchType
+                        ).ToList();
+                        
+                        var matchingSeries = GetSeriesFromLibraryByMatch(
+                            condition.MatchValue,
+                            condition.CaseSensitive,
+                            condition.MatchType
+                        ).ToList();
+                        
+                        // Keep only the items that are in both collections (intersection)
+                        resultMovies = resultMovies.Where(movie => matchingMovies.Any(m => m.Id == movie.Id)).ToList();
+                        resultSeries = resultSeries.Where(series => matchingSeries.Any(s => s.Id == series.Id)).ToList();
+                    }
+                }
             }
             else
             {
-                _logger.LogInformation("Preserving existing image for collection: {CollectionName}", collectionName);
+                // OR mode - any condition can match
+                _logger.LogInformation($"Using OR mode to combine {titleMatchPair.FilterConditions.Count} filters for collection: {collectionName}");
+                
+                foreach (var condition in titleMatchPair.FilterConditions)
+                {
+                    string matchTypeText = condition.MatchType switch
+                    {
+                        Configuration.MatchType.Title => "title",
+                        Configuration.MatchType.Genre => "genre",
+                        Configuration.MatchType.Studio => "studio",
+                        Configuration.MatchType.Actor => "actor",
+                        Configuration.MatchType.Director => "director",
+                        _ => "title"
+                    };
+                    
+                    _logger.LogInformation($"Processing filter condition: {matchTypeText} match for '{condition.MatchValue}'");
+                    
+                    var matchingMovies = GetMoviesFromLibraryByMatch(
+                        condition.MatchValue,
+                        condition.CaseSensitive,
+                        condition.MatchType
+                    ).ToList();
+                    
+                    var matchingSeries = GetSeriesFromLibraryByMatch(
+                        condition.MatchValue,
+                        condition.CaseSensitive,
+                        condition.MatchType
+                    ).ToList();
+                    
+                    // Add all matches to our results (union)
+                    resultMovies.AddRange(matchingMovies);
+                    resultSeries.AddRange(matchingSeries);
+                }
+                
+                // Remove duplicates
+                resultMovies = resultMovies.Distinct().ToList();
+                resultSeries = resultSeries.Distinct().ToList();
             }
+            
+            _logger.LogInformation($"Found {resultMovies.Count} movies and {resultSeries.Count} series total for collection: {collectionName}");
+            
+            // Combine movies and series into a single list
+            var combinedMediaItems = resultMovies.Cast<BaseItem>().Concat(resultSeries.Cast<BaseItem>()).ToList();
+
+            await ProcessCollectionMediaItems(collection, combinedMediaItems, isNewCollection);
         }
 
         private void OnTimerElapsed()
@@ -854,6 +943,24 @@ namespace Jellyfin.Plugin.AutoCollections
             }
             
             return result;
+        }
+
+        // Helper method to process collection media items
+        private async Task ProcessCollectionMediaItems(BoxSet collection, List<BaseItem> mediaItems, bool isNewCollection)
+        {
+            await RemoveUnwantedMediaItems(collection, mediaItems);
+            await AddWantedMediaItems(collection, mediaItems);
+            
+            // Only set the photo for the collection if it's newly created
+            if (isNewCollection && mediaItems.Count > 0)
+            {
+                _logger.LogInformation("Setting image for newly created collection: {CollectionName}", collection.Name);
+                await SetPhotoForCollection(collection, null);
+            }
+            else
+            {
+                _logger.LogInformation("Preserving existing image for collection: {CollectionName}", collection.Name);
+            }
         }
     }
 }

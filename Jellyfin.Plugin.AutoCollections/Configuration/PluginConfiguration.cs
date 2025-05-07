@@ -5,6 +5,13 @@ using System.Linq;
 
 namespace Jellyfin.Plugin.AutoCollections.Configuration
 {
+    // Enum for combining filter conditions
+    public enum LogicalOperator
+    {
+        Or = 0,  // Any condition can match (default)
+        And = 1  // All conditions must match
+    }
+    
     // Kept for backward compatibility
     public enum TagMatchingMode
     {
@@ -67,13 +74,38 @@ namespace Jellyfin.Plugin.AutoCollections.Configuration
         Director = 4 // Match by director
     }
 
+    // Represents a single filter condition
+    public class FilterCondition
+    {
+        public string MatchValue { get; set; }
+        public bool CaseSensitive { get; set; }
+        public MatchType MatchType { get; set; }
+
+        // Add parameterless constructor for XML serialization
+        public FilterCondition()
+        {
+            MatchValue = string.Empty;
+            CaseSensitive = false; // Default to case insensitive
+            MatchType = MatchType.Title; // Default to title matching
+        }
+
+        public FilterCondition(string matchValue, bool caseSensitive = false, MatchType matchType = MatchType.Title)
+        {
+            MatchValue = matchValue;
+            CaseSensitive = caseSensitive;
+            MatchType = matchType;
+        }
+    }
+
     // Class for match-based collections (previously title-based only)
     public class TitleMatchPair
     {
-        public string TitleMatch { get; set; }
+        public string TitleMatch { get; set; } // Kept for backward compatibility
         public string CollectionName { get; set; }
-        public bool CaseSensitive { get; set; }
-        public MatchType MatchType { get; set; }
+        public bool CaseSensitive { get; set; } // Kept for backward compatibility
+        public MatchType MatchType { get; set; } // Kept for backward compatibility
+        public List<FilterCondition> FilterConditions { get; set; }
+        public LogicalOperator LogicalOperator { get; set; } // How to combine filter conditions (AND/OR)
 
         // Add parameterless constructor for XML serialization
         public TitleMatchPair()
@@ -82,6 +114,8 @@ namespace Jellyfin.Plugin.AutoCollections.Configuration
             CollectionName = "Auto Collection";
             CaseSensitive = false; // Default to case insensitive
             MatchType = MatchType.Title; // Default to title matching for backward compatibility
+            FilterConditions = new List<FilterCondition>();
+            LogicalOperator = LogicalOperator.Or; // Default to OR for backward compatibility
         }
 
         public TitleMatchPair(string titleMatch, string collectionName = null, bool caseSensitive = false, MatchType matchType = MatchType.Title)
@@ -90,7 +124,14 @@ namespace Jellyfin.Plugin.AutoCollections.Configuration
             CollectionName = collectionName ?? GetDefaultCollectionName(titleMatch, matchType);
             CaseSensitive = caseSensitive;
             MatchType = matchType;
-        }        private static string GetDefaultCollectionName(string matchString, MatchType matchType)
+            
+            // Initialize with a single filter condition for backward compatibility
+            FilterConditions = new List<FilterCondition>
+            {
+                new FilterCondition(titleMatch, caseSensitive, matchType)
+            };
+            LogicalOperator = LogicalOperator.Or;
+        }private static string GetDefaultCollectionName(string matchString, MatchType matchType)
         {
             if (string.IsNullOrEmpty(matchString))
                 return "Auto Collection";
