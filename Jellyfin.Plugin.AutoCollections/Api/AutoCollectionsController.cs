@@ -1,5 +1,7 @@
 #nullable enable
+using System;
 using System.Net.Mime;
+using System.Threading.Tasks;
 using MediaBrowser.Controller.Library;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -51,15 +53,27 @@ namespace Jellyfin.Plugin.AutoCollections.Api
         /// Triggers an update of all auto collections.
         /// </summary>
         /// <response code="204">Collections update started successfully.</response>
-        /// <returns>A <see cref="NoContentResult"/> indicating success.</returns>
+        /// <response code="500">An error occurred while updating collections.</response>
+        /// <returns>A <see cref="ActionResult"/> indicating success or failure.</returns>
         [HttpPost("Update")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        public ActionResult UpdateAutoCollections()
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult> UpdateAutoCollections()
         {
-            _logger.LogInformation("Manual update of Auto Collections triggered via API");
-            _autoCollectionsManager.ExecuteAutoCollectionsNoProgress();
-            _logger.LogInformation("Auto Collections update completed");
-            return NoContent();
+            try
+            {
+                _logger.LogInformation("Manual update of Auto Collections triggered via API");
+                await _autoCollectionsManager.ExecuteAutoCollectionsNoProgress()
+                    .ConfigureAwait(false);
+                _logger.LogInformation("Auto Collections update completed successfully");
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while updating Auto Collections");
+                return StatusCode(StatusCodes.Status500InternalServerError, 
+                    new { error = "An error occurred while updating collections. Check server logs for details." });
+            }
         }
     }
 }
