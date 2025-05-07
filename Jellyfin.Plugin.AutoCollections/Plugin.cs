@@ -1,200 +1,132 @@
-﻿#nullable enable
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Jellyfin.Plugin.AutoCollections.Configuration;
-using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
-using MediaBrowser.Controller.Library;
+using MediaBrowser.Controller;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
-using Microsoft.Extensions.DependencyInjection;
+using MediaBrowser.Controller.Library;
 using Microsoft.Extensions.Logging;
 using MediaBrowser.Controller.Collections;
 using MediaBrowser.Controller.Providers;
 
 namespace Jellyfin.Plugin.AutoCollections
 {
-    /// <summary>
-    /// The main plugin class for Auto Collections.
-    /// </summary>
     public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     {
-        private readonly IServiceProvider _serviceProvider;
-        private AutoCollectionsManager? _autoCollectionsManager;
+        private readonly AutoCollectionsManager _syncAutoCollectionsManager;
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="Plugin"/> class.
-        /// </summary>
-        /// <param name="applicationPaths">Application paths.</param>
-        /// <param name="xmlSerializer">XML serializer.</param>
-        /// <param name="serviceProvider">Service provider for dependency injection.</param>
-        /// <exception cref="ArgumentNullException">Thrown when a required dependency is null.</exception>
         public Plugin(
-            IApplicationPaths applicationPaths,
+            IServerApplicationPaths appPaths,
             IXmlSerializer xmlSerializer,
-            IServiceProvider serviceProvider)
-            : base(applicationPaths, xmlSerializer)
+            ICollectionManager collectionManager,
+            IProviderManager providerManager,
+            ILibraryManager libraryManager,
+            ILoggerFactory loggerFactory)
+            : base(appPaths, xmlSerializer)
         {
-            _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
             Instance = this;
+            _syncAutoCollectionsManager = new AutoCollectionsManager(
+                providerManager,
+                collectionManager,
+                libraryManager,
+                loggerFactory.CreateLogger<AutoCollectionsManager>(),
+                appPaths);
 
-            try
-            {
-                // Initialize configuration with defaults if needed
-                InitializeConfigurationIfNeeded();
-                ValidateConfiguration();
-            }
-            catch (Exception ex)
-            {
-                var logger = _serviceProvider.GetService<ILoggerFactory>()?.CreateLogger<Plugin>();
-                logger?.LogError(ex, "Error initializing plugin configuration");
-                throw;
-            }
+            // Initialize configuration with defaults only on first run
+            InitializeConfigurationIfNeeded();
         }
 
-        /// <summary>
-        /// Gets the current plugin instance.
-        /// </summary>
-        public static Plugin? Instance { get; private set; }
-
-        /// <inheritdoc />
-        public override string Name => "Auto Collections";
-
-        /// <inheritdoc />
-        public override string Description => 
-            "Creates dynamic collections based on Title, Genre, Studio, Actor, or Director matching with custom collection names";
-
-        /// <inheritdoc />
-        private readonly Guid _id = new Guid("06ebf4a9-1326-4327-968d-8da00e1ea2eb");
-        public override Guid Id => _id;
-
-        /// <summary>
-        /// Gets the AutoCollectionsManager instance, creating it if necessary.
-        /// </summary>
-        /// <returns>The AutoCollectionsManager instance.</returns>
-        /// <exception cref="InvalidOperationException">Thrown when required services cannot be resolved.</exception>
-        internal AutoCollectionsManager GetAutoCollectionsManager()
-        {
-            if (_autoCollectionsManager == null)
-            {
-                var logger = _serviceProvider.GetService<ILoggerFactory>()?.CreateLogger<AutoCollectionsManager>()
-                    ?? throw new InvalidOperationException("Failed to create logger");
-
-                var providerManager = _serviceProvider.GetRequiredService<IProviderManager>();
-                var collectionManager = _serviceProvider.GetRequiredService<ICollectionManager>();
-                var libraryManager = _serviceProvider.GetRequiredService<ILibraryManager>();
-                var applicationPaths = _serviceProvider.GetRequiredService<IApplicationPaths>();
-
-                _autoCollectionsManager = new AutoCollectionsManager(
-                    providerManager,
-                    collectionManager,
-                    libraryManager,
-                    logger,
-                    applicationPaths);
-            }
-
-            return _autoCollectionsManager;
-        }
-
-        /// <summary>
-        /// Initializes the plugin configuration with defaults if needed.
-        /// </summary>
         private void InitializeConfigurationIfNeeded()
         {
-            // Check if this is the first time the plugin is being loaded
-            bool needsInitialization = Configuration.TitleMatchPairs == null || Configuration.TitleMatchPairs.Count == 0;
+            // Check if this is the first time the plugin is being loaded or if it's using the old config format
+            bool needsInitialization = false;
             
+            // Check if we have any title match pairs configured
+            if (Configuration.TitleMatchPairs == null || Configuration.TitleMatchPairs.Count == 0)
+            {
+                needsInitialization = true;
+            }
+            
+            // Only add default collections if we need initialization
             if (needsInitialization)
             {
-                // Add default collections with examples of different matching types
+                // Add default collections for first-time users
                 Configuration.TitleMatchPairs = new List<TitleMatchPair>
                 {
-                    // Title-based collections
-                    new TitleMatchPair("Marvel", "Marvel Universe", matchType: Configuration.MatchType.Title),
-                    new TitleMatchPair("Star Wars", "Star Wars Collection", matchType: Configuration.MatchType.Title),
-                    
-                    // Genre-based collections
-                    new TitleMatchPair("Action", "Action Movies", matchType: Configuration.MatchType.Genre),
-                    new TitleMatchPair("Comedy", "Comedy Collection", matchType: Configuration.MatchType.Genre),
-                    
-                    // Studio-based collections
-                    new TitleMatchPair("Disney", "Disney Productions", matchType: Configuration.MatchType.Studio),
-                    
-                    // Actor-based collections
-                    new TitleMatchPair("Tom Hanks", "Tom Hanks Filmography", matchType: Configuration.MatchType.Actor),
-                    
-                    // Director-based collections
-                    new TitleMatchPair("Christopher Nolan", "Nolan Collection", matchType: Configuration.MatchType.Director)
+                    new TitleMatchPair("Marvel", "Marvel Universe"),
+                    new TitleMatchPair("Star Wars", "Star Wars Collection"),
+                    new TitleMatchPair("Harry Potter", "Harry Potter Series"),
+                    new TitleMatchPair("Lord of the Rings", "Middle Earth"),
+                    new TitleMatchPair("Pirates", "Pirates Movies"),
+                    new TitleMatchPair("Fast & Furious", "Fast & Furious Saga"),
+                    new TitleMatchPair("Jurassic", "Jurassic Collection"),
                 };
 
-                // For backward compatibility (empty, as we're using title-based matching)
+                // For backward compatibility (empty, as we're switching from tag-based to title-based)
                 Configuration.TagTitlePairs = new List<TagTitlePair>();
                 Configuration.Tags = Array.Empty<string>();
 
+                // Save the configuration with defaults
                 SaveConfiguration();
             }
-        }
-
-        /// <summary>
-        /// Validates the current configuration.
-        /// </summary>
-        /// <exception cref="InvalidOperationException">Thrown when configuration is invalid.</exception>
-        private void ValidateConfiguration()
+        }        private void AttemptMigrationFromTags()
         {
+            #pragma warning disable CS0618 // Disable obsolete warning for backward compatibility code
+            // Initialize our new title match pairs list
             if (Configuration.TitleMatchPairs == null)
             {
-                throw new InvalidOperationException("TitleMatchPairs collection cannot be null");
+                Configuration.TitleMatchPairs = new List<TitleMatchPair>();
             }
-
-            // Check for duplicate collection names
-            var duplicateNames = Configuration.TitleMatchPairs
-                .GroupBy(p => p.CollectionName, StringComparer.OrdinalIgnoreCase)
-                .Where(g => g.Count() > 1)
-                .Select(g => g.Key)
-                .ToList();
-
-            if (duplicateNames.Any())
+            
+            // If we have old TagTitlePairs, convert them to TitleMatchPairs
+            // This is more of a placeholder since direct conversion doesn't make sense,
+            // but we're keeping the collection names for continuity
+            if (Configuration.TagTitlePairs != null && Configuration.TagTitlePairs.Count > 0)
             {
-                throw new InvalidOperationException(
-                    $"Duplicate collection names found: {string.Join(", ", duplicateNames)}");
-            }
-
-            // Validate each title match pair
-            foreach (var pair in Configuration.TitleMatchPairs)
-            {
-                if (string.IsNullOrWhiteSpace(pair.TitleMatch))
+                foreach (var tagPair in Configuration.TagTitlePairs)
                 {
-                    throw new InvalidOperationException(
-                        $"Empty match string found for collection: {pair.CollectionName}");
-                }
-
-                if (string.IsNullOrWhiteSpace(pair.CollectionName))
-                {
-                    throw new InvalidOperationException(
-                        $"Empty collection name found for match: {pair.TitleMatch}");
+                    // Create a title match pair with the same collection name
+                    // but use the tag as the title match string
+                    var titleMatch = new TitleMatchPair(
+                        titleMatch: tagPair.Tag,
+                        collectionName: tagPair.Title,
+                        caseSensitive: false);
+                        
+                    Configuration.TitleMatchPairs.Add(titleMatch);
                 }
             }
+            // If we only have old Tags, convert them too
+            else if (Configuration.Tags != null && Configuration.Tags.Length > 0)
+            {
+                foreach (var tag in Configuration.Tags)
+                {
+                    var titleMatch = new TitleMatchPair(tag);
+                    Configuration.TitleMatchPairs.Add(titleMatch);
+                }
+            }
+            #pragma warning restore CS0618
         }
 
-        /// <inheritdoc />
+        public override string Name => "Auto Collections";
+
+        public static Plugin Instance { get; private set; }        public override string Description
+            => "Enables creation of Auto Collections based on Title, Studio, or Genre with custom collection names";        
+        
+        private readonly Guid _id = new Guid("06ebf4a9-1326-4327-968d-8da00e1ea2eb");
+        public override Guid Id => _id;
+
         public IEnumerable<PluginPageInfo> GetPages()
         {
             return new[]
             {
                 new PluginPageInfo
                 {
-                    Name = Name,
+                    Name = "Auto Collections",
                     EmbeddedResourcePath = GetType().Namespace + ".Configuration.configurationpage.html"
                 }
             };
-        }
-
-        /// <inheritdoc />
-        public override void Dispose()
-        {
-            _autoCollectionsManager?.Dispose();
-            base.Dispose();
         }
     }
 }

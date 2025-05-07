@@ -24,9 +24,6 @@ using Jellyfin.Plugin.AutoCollections.Configuration;
 namespace Jellyfin.Plugin.AutoCollections
 
 {
-    /// <summary>
-    /// Manages automated collections in Jellyfin based on various matching criteria.
-    /// </summary>
     public class AutoCollectionsManager : IDisposable
     {
         private readonly ICollectionManager _collectionManager;
@@ -36,14 +33,6 @@ namespace Jellyfin.Plugin.AutoCollections
         private readonly ILogger<AutoCollectionsManager> _logger;
         private readonly string _pluginDirectory;
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="AutoCollectionsManager"/> class.
-        /// </summary>
-        /// <param name="providerManager">The provider manager instance.</param>
-        /// <param name="collectionManager">The collection manager instance.</param>
-        /// <param name="libraryManager">The library manager instance.</param>
-        /// <param name="logger">The logger instance.</param>
-        /// <param name="applicationPaths">The application paths.</param>
         public AutoCollectionsManager(IProviderManager providerManager, ICollectionManager collectionManager, ILibraryManager libraryManager, ILogger<AutoCollectionsManager> logger, IApplicationPaths applicationPaths)
         {
             _providerManager = providerManager;
@@ -113,6 +102,8 @@ namespace Jellyfin.Plugin.AutoCollections
             return results;
         }
         
+        // Retrieves series from the library that match ALL provided terms (AND matching).
+        // Filters by a specific person if provided.
         private IEnumerable<Series> GetSeriesFromLibraryWithAndMatching(string[] terms, Person? specificPerson = null)
         {
             if (terms.Length == 0)
@@ -131,6 +122,9 @@ namespace Jellyfin.Plugin.AutoCollections
             return results;
         }
 
+        // Retrieves movies from the library based on a search term.
+        // If a specific person is provided, results are filtered for that person as an actor or director.
+        // Otherwise, searches by tags and genres.
         private IEnumerable<Movie> GetMoviesFromLibrary(string term, Person? specificPerson = null)
         {
             IEnumerable<Movie> results = Enumerable.Empty<Movie>();
@@ -189,6 +183,8 @@ namespace Jellyfin.Plugin.AutoCollections
             return results;
         }
         
+        // Retrieves movies from the library that match ALL provided terms (AND matching).
+        // Filters by a specific person if provided.
         private IEnumerable<Movie> GetMoviesFromLibraryWithAndMatching(string[] terms, Person? specificPerson = null)
         {
             if (terms.Length == 0)
@@ -207,6 +203,7 @@ namespace Jellyfin.Plugin.AutoCollections
             return results;
         }        
         
+        // Retrieves movies from the library based on a match string, case sensitivity, and match type (e.g., Title, Genre, Actor).
         private IEnumerable<Movie> GetMoviesFromLibraryByMatch(string matchString, bool caseSensitive, Configuration.MatchType matchType)
         {
             // Get all non-null movies from the library
@@ -243,7 +240,9 @@ namespace Jellyfin.Plugin.AutoCollections
                     !string.IsNullOrEmpty(movie.Name) && movie.Name.Contains(matchString, comparison))
             };
         }
-          private IEnumerable<Series> GetSeriesFromLibraryByMatch(string matchString, bool caseSensitive, Configuration.MatchType matchType)
+        
+        // Retrieves series from the library based on a match string, case sensitivity, and match type.
+        private IEnumerable<Series> GetSeriesFromLibraryByMatch(string matchString, bool caseSensitive, Configuration.MatchType matchType)
         {
             // Get all series from the library
             var allSeries = _libraryManager.GetItemList(new InternalItemsQuery
@@ -291,17 +290,21 @@ namespace Jellyfin.Plugin.AutoCollections
                     series?.Name != null && series.Name.Contains(matchString, comparison)) // Default to title match
             };
         }
-          // Keep these for backward compatibility
+        
+        // Keep these for backward compatibility
+        // Retrieves movies by title match (case-sensitive or insensitive).
         private IEnumerable<Movie> GetMoviesFromLibraryByTitleMatch(string titleMatch, bool caseSensitive)
         {
             return GetMoviesFromLibraryByMatch(titleMatch, caseSensitive, Configuration.MatchType.Title);
         }
         
+        // Retrieves series by title match (case-sensitive or insensitive).
         private IEnumerable<Series> GetSeriesFromLibraryByTitleMatch(string titleMatch, bool caseSensitive)
         {
             return GetSeriesFromLibraryByMatch(titleMatch, caseSensitive, Configuration.MatchType.Title);
         }
 
+        // Removes media items from a collection that are not in the wantedMediaItems list.
         private async Task RemoveUnwantedMediaItems(BoxSet collection, IEnumerable<BaseItem> wantedMediaItems)
         {
             // Get the set of IDs for media items we want to keep
@@ -320,6 +323,7 @@ namespace Jellyfin.Plugin.AutoCollections
             }
         }
 
+        // Adds media items to a collection from the wantedMediaItems list if they are not already present.
         private async Task AddWantedMediaItems(BoxSet collection, IEnumerable<BaseItem> wantedMediaItems)
         {
             // Get the set of IDs for items currently in the collection
@@ -340,6 +344,7 @@ namespace Jellyfin.Plugin.AutoCollections
             }
         }
 
+        // Retrieves a BoxSet (collection) by its name, ensuring it's an "Autocollection".
         private BoxSet? GetBoxSetByName(string name)
         {
             return _libraryManager.GetItemList(new InternalItemsQuery
@@ -352,6 +357,7 @@ namespace Jellyfin.Plugin.AutoCollections
             }).Select(b => b as BoxSet).FirstOrDefault();
         }
 
+        // Executes the auto-collection process for all configured title match pairs without progress reporting.
         public async Task ExecuteAutoCollectionsNoProgress()
         {
             _logger.LogInformation("Performing ExecuteAutoCollections");
@@ -379,11 +385,15 @@ namespace Jellyfin.Plugin.AutoCollections
             _logger.LogInformation("Completed execution of all Auto collections");
         }
 
+        // Executes the auto-collection process with progress reporting and cancellation support.
+        // Currently, it calls the NoProgress version.
         public async Task ExecuteAutoCollections(IProgress<double> progress, CancellationToken cancellationToken)
         {
             await ExecuteAutoCollectionsNoProgress();
         }
 
+        // Determines the name for a collection based on a TagTitlePair.
+        // Uses a custom title if provided, otherwise generates one from tags.
         private string GetCollectionName(TagTitlePair tagTitlePair)
         {
             // If a custom title is set, use it
@@ -411,6 +421,9 @@ namespace Jellyfin.Plugin.AutoCollections
             return $"{capitalizedTag} Auto Collection";
         }
 
+        // Sets the primary image for a collection.
+        // Prioritizes image from a specific person, then a detected person from collection name,
+        // then an image from a media item within the collection.
         private async Task SetPhotoForCollection(BoxSet collection, Person? specificPerson = null)
         {
             try
@@ -545,6 +558,8 @@ namespace Jellyfin.Plugin.AutoCollections
             }
         }
 
+        // Executes the auto-collection logic for a single TagTitlePair.
+        // Creates or updates a collection based on items matching the specified tags and matching mode.
         private async Task ExecuteAutoCollectionsForTagTitlePair(TagTitlePair tagTitlePair)
         {
             _logger.LogInformation($"Performing ExecuteAutoCollections for tag: {tagTitlePair.Tag}");
@@ -649,8 +664,12 @@ namespace Jellyfin.Plugin.AutoCollections
             {
                 _logger.LogInformation("Preserving existing image for collection: {CollectionName}", collectionName);
             }
-        }        private async Task ExecuteAutoCollectionsForTitleMatchPair(TitleMatchPair titleMatchPair)
-        {            string matchTypeText = titleMatchPair.MatchType switch
+        }
+
+        // Executes the auto-collection logic for a single TitleMatchPair.
+        private async Task ExecuteAutoCollectionsForTitleMatchPair(TitleMatchPair titleMatchPair)
+        {
+            string matchTypeText = titleMatchPair.MatchType switch
             {
                 Configuration.MatchType.Title => "title",
                 Configuration.MatchType.Genre => "genre",

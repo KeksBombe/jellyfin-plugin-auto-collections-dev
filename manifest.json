@@ -2,10 +2,10 @@
     {
         "guid": "06ebf4a9-1326-4327-968d-8da00e1ea2eb",
         "name": "Auto Collections",
-        "overview": "Creates dynamic collections based on Title, Genre, Studio, Actor, or Director matching",
-        "description": "Automatically creates and maintains collections by matching movies and TV series based on their titles, genres, studios, actors, or directors. Supports case-sensitive matching and custom collection names.",
+        "overview": "Enables creation of Auto Collections based on Tag",
+        "description": "Enables creation of Auto Collections based on Tag",
         "owner": "KeksBombe",
-        "category": "Metadata",
+        "category": "General",
         "versions": [
             {
                 "version": "0.0.1.19",
