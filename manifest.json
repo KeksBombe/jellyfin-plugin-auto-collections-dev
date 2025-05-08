@@ -8,6 +8,14 @@
         "category": "General",
         "versions": [
             {
+                "version": "0.0.1.33",
+                "changelog": "- See the full changelog at [GitHub](https://github.com/KeksBombe/jellyfin-plugin-auto-collections-dev/releases/tag/0.0.1.33)\n",
+                "targetAbi": "10.9.9.0",
+                "sourceUrl": "https://github.com/KeksBombe/jellyfin-plugin-auto-collections-dev/releases/download/0.0.1.33/auto-collections-0.0.1.33.zip",
+                "checksum": "c3bd60bfe2e77a653120ed6dd04ef72f",
+                "timestamp": "2025-05-08T13:34:45Z"
+            },
+            {
                 "version": "0.0.1.32",
                 "changelog": "- See the full changelog at [GitHub](https://github.com/KeksBombe/jellyfin-plugin-auto-collections-dev/releases/tag/0.0.1.32)\n",
                 "targetAbi": "10.9.9.0",
