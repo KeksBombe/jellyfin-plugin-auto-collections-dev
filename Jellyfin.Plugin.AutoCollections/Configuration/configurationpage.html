@@ -6,47 +6,20 @@
     .title-match-container {
         margin-bottom: 10px;
         display: flex;
-        flex-direction: column;
-        padding: 15px;
-        background-color: rgba(0,0,0,0.05);
-        border-radius: 4px;
-      }
-      .collection-header {
-        display: flex;
         align-items: center;
-        margin-bottom: 15px;
-      }
-      .collection-name-input {
-        flex: 1;
-        margin-right: 10px;
-      }
-      .logical-operator-container {
-        margin-right: 10px;
-        display: flex;
-        align-items: center;
-      }
-      .operator-label {
-        white-space: nowrap;
-        margin-right: 5px;
-      }
-      .filter-condition {
-        display: flex;
-        align-items: center;
-        margin-bottom: 8px;
-        flex-wrap: wrap;
-        padding: 8px;
-        background-color: rgba(0,0,0,0.03);
-        border-radius: 4px;
       }
       .match-type-container {
         width: 100px;
         margin-right: 10px;
-        flex: 0 0 100px;
       }
       .match-type-select {
         width: 100%;
       }
       .title-match-input {
+        flex: 1;
+        margin-right: 10px;
+      }
+      .collection-name-input {
         flex: 1;
         margin-right: 10px;
       }
@@ -62,47 +35,33 @@
       .add-title-match-button {
         margin-bottom: 15px;
       }
-      .add-condition-button {
-        margin-top: 5px;
-        margin-bottom: 10px;
-        align-self: flex-start;
-      }
-      .add-group-button {
-        margin-top: 5px;
-        margin-bottom: 10px;
-        margin-right: 10px;
-        align-self: flex-start;
-      }
       .remove-button {
         margin-left: 10px;
         min-width: 40px;
       }
       #title-match-pairs {
         margin-bottom: 20px;
-      }
-      .filter-conditions {
-        width: 100%;
-      }
-      .filter-group {
-        margin-bottom: 8px;
-        padding: 10px;
-        background-color: rgba(0,0,0,0.02);
-        border-radius: 4px;
-        border: 1px dashed rgba(0,0,0,0.1);
-      }
-      .filter-group-header {
-        display: flex;
-        align-items: center;
-        margin-bottom: 10px;
-      }
-      .filter-group-items {
-        padding-left: 20px;
-      }
-      .help-text {
+      }      .help-text {
         font-size: 0.9em;
         color: #888;
         margin-top: 5px;
         margin-bottom: 15px;
+      }
+      .expression-container {
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+      }
+      code {
+        background-color: rgba(0, 0, 0, 0.1);
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-family: monospace;
+      }
+      .section-divider {
+        margin-top: 30px;
+        margin-bottom: 20px;
+        border-top: 1px solid rgba(128, 128, 128, 0.2);
       }
     </style>
   </head>
@@ -126,8 +85,8 @@
               >Help</a>
             </div>
             <div class="verticalSection">
-              <div class="inputContainer">                <label class="inputLabel inputLabelUnfocused" for="title-match-pairs">Auto Collections:</label>
-                <div class="help-text">Create collections based on multiple filter conditions. You can combine filters using either "AND" (all conditions must match) or "OR" (any condition can match). Group conditions using parentheses for complex filtering logic. Select the type (Title, Studio, Genre, Actor, or Director), enter the string to match, and provide a collection name.</div>
+              <div class="inputContainer">                <label class="inputLabel inputLabelUnfocused" for="title-match-pairs">Simple Collections:</label>
+                <div class="help-text">Create collections based on a simple string match. Select the type (Title, Studio, Genre, Actor, or Director), choose media type (All, Movies, or Shows), enter the string to match, and provide a collection name.</div>
                 <div id="title-match-pairs"></div>
               </div>
               
@@ -137,7 +96,30 @@
                 type="button"
                 class="raised add-title-match-button"
               >
-                <span>Add Auto Collection</span>
+                <span>Add Simple Collection</span>              </button>
+
+              <div class="section-divider"></div>
+              
+              <div class="inputContainer">
+                <label class="inputLabel inputLabelUnfocused" for="expression-collections">Advanced Collections:</label>
+                <div class="help-text">
+                  Create collections using complex boolean expressions. Examples:<br>
+                  <code>TITLE "Avengers"</code> - Items with "Avengers" in the title<br>
+                  <code>STUDIO "Marvel" AND GENRE "Action"</code> - Marvel action items<br>
+                  <code>STUDIO "Marvel" AND (TITLE "Spiderman" OR ACTOR "Robert Downey JR.")</code> - Marvel items with Spiderman in the title or starring Robert Downey Jr.<br>
+                  <code>GENRE "Action" AND MOVIE</code> - Action movies only (no TV shows)<br>
+                  <code>TITLE "Avengers" OR (GENRE "Action" AND SHOW)</code> - Anything with "Avengers" in the title, plus Action TV shows
+                </div>
+                <div id="expression-collections"></div>
+              </div>
+              
+              <button
+                id="add-expression-collection-button"
+                is="emby-button"
+                type="button"
+                class="raised add-title-match-button"
+              >
+                <span>Add Advanced Collection</span>
               </button>
               
               <br />
@@ -162,14 +144,116 @@
           </form>
         </div>
       </div>      <script type="text/javascript" defer>
-        // Function to create a single filter condition element
-        function createFilterConditionElement(matchValue = '', caseSensitive = false, matchType = 0) {
-          const conditionContainer = document.createElement('div');
-          conditionContainer.className = 'filter-condition';
+        // For expression-based collections
+        function createExpressionCollectionElement(expression = '', collectionName = '', caseSensitive = false) {
+          const container = document.createElement('div');
+          container.className = 'expression-container';
+          container.style.display = 'flex';
+          container.style.flexWrap = 'wrap';
+          container.style.alignItems = 'center';
+          container.style.padding = '8px';
+          container.style.marginBottom = '10px';
+          container.style.borderRadius = '4px';
+          container.style.backgroundColor = 'rgba(0,0,0,0.05)';
           
+          // Collection Name Input
+          const collectionNameContainer = document.createElement('div');
+          collectionNameContainer.style.flex = '1 1 200px';
+          collectionNameContainer.style.marginRight = '10px';
+          
+          const collectionNameInput = document.createElement('input');
+          collectionNameInput.is = 'emby-input';
+          collectionNameInput.type = 'text';
+          collectionNameInput.className = 'collection-name-input';
+          collectionNameInput.style.width = '100%';
+          collectionNameInput.placeholder = 'Collection Name';
+          collectionNameInput.value = collectionName;
+          
+          collectionNameContainer.appendChild(collectionNameInput);
+          
+          // Expression Input
+          const expressionContainer = document.createElement('div');
+          expressionContainer.style.flex = '1 1 300px';
+          expressionContainer.style.marginRight = '10px';
+          
+          const expressionInput = document.createElement('input');
+          expressionInput.is = 'emby-input';
+          expressionInput.type = 'text';
+          expressionInput.className = 'expression-input';
+          expressionInput.style.width = '100%';
+          expressionInput.placeholder = 'TITLE "Avengers" OR (STUDIO "Marvel" AND GENRE "Action")';
+          expressionInput.value = expression;
+          
+          expressionContainer.appendChild(expressionInput);
+          
+          // Case-sensitive checkbox
+          const caseCheckContainer = document.createElement('div');
+          caseCheckContainer.className = 'case-sensitive-check';
+          caseCheckContainer.style.flex = '0 0 auto';
+          caseCheckContainer.style.display = 'flex';
+          caseCheckContainer.style.alignItems = 'center';
+          caseCheckContainer.style.marginRight = '10px';
+          
+          const caseCheckboxWrapper = document.createElement('div');
+          caseCheckboxWrapper.style.marginRight = '5px';
+          
+          const caseCheckbox = document.createElement('input');
+          caseCheckbox.is = 'emby-checkbox';
+          caseCheckbox.type = 'checkbox';
+          caseCheckbox.className = 'case-sensitive-checkbox';
+          caseCheckbox.checked = caseSensitive;
+          
+          const caseLabel = document.createElement('label');
+          caseLabel.className = 'case-label';
+          caseLabel.textContent = 'Case Sensitive';
+          caseLabel.style.marginLeft = '5px';
+          caseLabel.style.fontSize = '14px';
+          
+          caseCheckboxWrapper.appendChild(caseCheckbox);
+          caseCheckContainer.appendChild(caseCheckboxWrapper);
+          caseCheckContainer.appendChild(caseLabel);
+          
+          // Remove button
+          const removeButton = document.createElement('button');
+          removeButton.is = 'emby-button';
+          removeButton.type = 'button';
+          removeButton.className = 'remove-button';
+          removeButton.innerHTML = '<span>✕</span>';
+          removeButton.style.flex = '0 0 auto';
+          removeButton.style.minWidth = '32px';
+          removeButton.style.height = '32px';
+          removeButton.style.padding = '0';
+          removeButton.style.borderRadius = '50%';
+          removeButton.onclick = function() {
+            container.remove();
+          };
+          
+          // Add all components
+          container.appendChild(collectionNameContainer);
+          container.appendChild(expressionContainer);
+          container.appendChild(caseCheckContainer);
+          container.appendChild(removeButton);
+          
+          return container;
+        }
+        
+        function createTitleMatchPairElement(titleMatch = '', collectionName = '', caseSensitive = false, matchType = 0, mediaType = 0) {
+          const container = document.createElement('div');
+          container.className = 'title-match-container';
+          container.style.display = 'flex';
+          container.style.flexWrap = 'wrap';
+          container.style.alignItems = 'center';
+          container.style.padding = '8px';
+          container.style.marginBottom = '10px';
+          container.style.borderRadius = '4px';
+          container.style.backgroundColor = 'rgba(0,0,0,0.05)';
+            
           // Create match type dropdown
           const matchTypeContainer = document.createElement('div');
           matchTypeContainer.className = 'match-type-container';
+          matchTypeContainer.style.marginRight = '10px';
+          matchTypeContainer.style.minWidth = '100px';
+          matchTypeContainer.style.flex = '0 0 100px';
           
           const matchTypeSelect = document.createElement('select');
           matchTypeSelect.is = 'emby-select';
@@ -198,10 +282,55 @@
           
           matchTypeContainer.appendChild(matchTypeSelect);
           
+          // Create media type dropdown
+          const mediaTypeContainer = document.createElement('div');
+          mediaTypeContainer.className = 'media-type-container';
+          mediaTypeContainer.style.marginRight = '10px';
+          mediaTypeContainer.style.minWidth = '100px';
+          mediaTypeContainer.style.flex = '0 0 100px';
+          
+          const mediaTypeSelect = document.createElement('select');
+          mediaTypeSelect.is = 'emby-select';
+          mediaTypeSelect.className = 'media-type-select';
+          
+          // Add media type options
+          const mediaOptions = [
+            { value: '0', text: 'All' },
+            { value: '1', text: 'Movies' },
+            { value: '2', text: 'Shows' }
+          ];
+          
+          mediaOptions.forEach(opt => {
+            const option = document.createElement('option');
+            option.value = opt.value;
+            option.text = opt.text;
+            mediaTypeSelect.appendChild(option);
+          });
+          
+          // Set the selected option based on mediaType parameter
+          if (mediaType !== undefined) {
+            mediaTypeSelect.value = mediaType.toString();
+          }
+          
+          mediaTypeContainer.appendChild(mediaTypeSelect);
+          
+          // This ensures the Emby select components are properly initialized
+          setTimeout(() => {
+            if (matchTypeSelect.embyInit) {
+              matchTypeSelect.embyInit();
+            }
+            if (mediaTypeSelect.embyInit) {
+              mediaTypeSelect.embyInit();
+            } else if (window.EmbyWebComponents && window.EmbyWebComponents.autoFocus) {
+              window.EmbyWebComponents.autoFocus(matchTypeSelect.parentNode);
+              window.EmbyWebComponents.autoFocus(mediaTypeSelect.parentNode);
+            }
+          }, 0);
+            
           // Create a dynamic update for the placeholder text based on the selected match type
           const updatePlaceholder = (select) => {
             const matchType = parseInt(select.value, 10);
-            const input = conditionContainer.querySelector('.title-match-input');
+            const input = container.querySelector('.title-match-input');
             if (input) {
               switch(matchType) {
                 case 1: // Genre
@@ -227,7 +356,6 @@
             updatePlaceholder(matchTypeSelect);
           });
             
-          // Create match value input
           const titleMatchContainer = document.createElement('div');
           titleMatchContainer.style.flex = '1 1 200px';
           titleMatchContainer.style.marginRight = '10px';
@@ -238,12 +366,26 @@
           titleMatchInput.className = 'title-match-input';
           titleMatchInput.style.width = '100%';
           titleMatchInput.placeholder = 'Match String';
-          titleMatchInput.value = matchValue;
+          titleMatchInput.value = titleMatch;
           
           titleMatchContainer.appendChild(titleMatchInput);
           
           // Set initial placeholder based on match type
           setTimeout(() => updatePlaceholder(matchTypeSelect), 0);
+            
+          const collectionNameContainer = document.createElement('div');
+          collectionNameContainer.style.flex = '1 1 200px';
+          collectionNameContainer.style.marginRight = '10px';
+          
+          const collectionNameInput = document.createElement('input');
+          collectionNameInput.is = 'emby-input';
+          collectionNameInput.type = 'text';
+          collectionNameInput.className = 'collection-name-input';
+          collectionNameInput.style.width = '100%';
+          collectionNameInput.placeholder = 'Collection Name';
+          collectionNameInput.value = collectionName;
+          
+          collectionNameContainer.appendChild(collectionNameInput);
             
           // Create case-sensitive checkbox
           const caseCheckContainer = document.createElement('div');
@@ -251,6 +393,7 @@
           caseCheckContainer.style.flex = '0 0 auto';
           caseCheckContainer.style.display = 'flex';
           caseCheckContainer.style.alignItems = 'center';
+          caseCheckContainer.style.marginRight = '10px';
           
           const caseCheckboxWrapper = document.createElement('div');
           caseCheckboxWrapper.style.marginRight = '5px';
@@ -264,208 +407,19 @@
           const caseLabel = document.createElement('label');
           caseLabel.className = 'case-label';
           caseLabel.textContent = 'Case Sensitive';
+          caseLabel.style.marginLeft = '5px';
           caseLabel.style.fontSize = '14px';
           
           caseCheckboxWrapper.appendChild(caseCheckbox);
           caseCheckContainer.appendChild(caseCheckboxWrapper);
           caseCheckContainer.appendChild(caseLabel);
-          
-          // Create remove button for this condition
+            
           const removeButton = document.createElement('button');
           removeButton.is = 'emby-button';
           removeButton.type = 'button';
           removeButton.className = 'remove-button';
           removeButton.innerHTML = '<span>✕</span>';
           removeButton.style.flex = '0 0 auto';
-          removeButton.style.minWidth = '32px';
-          removeButton.style.height = '32px';
-          removeButton.style.padding = '0';
-          removeButton.style.borderRadius = '50%';
-          
-          // Initialize the Emby components
-          setTimeout(() => {
-            if (matchTypeSelect.embyInit) {
-              matchTypeSelect.embyInit();
-            } else if (window.EmbyWebComponents && window.EmbyWebComponents.autoFocus) {
-              window.EmbyWebComponents.autoFocus(matchTypeSelect.parentNode);
-            }
-          }, 0);
-          
-          // Add all components to condition container
-          conditionContainer.appendChild(matchTypeContainer);
-          conditionContainer.appendChild(titleMatchContainer);
-          conditionContainer.appendChild(caseCheckContainer);
-          conditionContainer.appendChild(removeButton);
-          
-          // Add click handler for remove button
-          removeButton.onclick = function() {
-            // Don't allow removing the last item in a group
-            const parent = conditionContainer.parentElement;
-            if (parent && parent.querySelectorAll(':scope > .filter-condition, :scope > .filter-group').length > 1) {
-              conditionContainer.remove();
-            } else {
-              alert("Cannot remove the last item in a group. Every group needs at least one condition or subgroup.");
-            }
-          };
-          
-          return conditionContainer;
-        }
-        
-        // Function to create a filter group element (group of conditions or other groups)
-        function createFilterGroupElement(logicalOperator = 0, items = []) {
-          const groupContainer = document.createElement('div');
-          groupContainer.className = 'filter-group';
-          
-          // Create group header with operator selector
-          const groupHeader = document.createElement('div');
-          groupHeader.className = 'filter-group-header';
-          
-          const operatorLabel = document.createElement('label');
-          operatorLabel.className = 'operator-label';
-          operatorLabel.textContent = 'Combine with:';
-          
-          const operatorSelect = document.createElement('select');
-          operatorSelect.is = 'emby-select';
-          operatorSelect.className = 'logical-operator-select';
-          operatorSelect.style.marginLeft = '5px';
-          operatorSelect.style.marginRight = '10px';
-          
-          const orOption = document.createElement('option');
-          orOption.value = '0';
-          orOption.text = 'OR';
-          operatorSelect.appendChild(orOption);
-          
-          const andOption = document.createElement('option');
-          andOption.value = '1';
-          andOption.text = 'AND';
-          operatorSelect.appendChild(andOption);
-          
-          // Set the selected option based on provided logical operator
-          operatorSelect.value = logicalOperator.toString();
-          
-          // Create remove button for this group
-          const removeButton = document.createElement('button');
-          removeButton.is = 'emby-button';
-          removeButton.type = 'button';
-          removeButton.className = 'remove-button';
-          removeButton.innerHTML = '<span>✕</span>';
-          removeButton.style.flex = '0 0 auto';
-          removeButton.style.minWidth = '32px';
-          removeButton.style.height = '32px';
-          removeButton.style.padding = '0';
-          removeButton.style.borderRadius = '50%';
-          
-          // Add click handler for remove button
-          removeButton.onclick = function() {
-            // Don't allow removing the root group
-            const parent = groupContainer.parentElement;
-            if (!parent.classList.contains('filter-expression-root')) {
-              // Make sure it's not the last item in its parent group
-              if (parent && parent.querySelectorAll(':scope > .filter-condition, :scope > .filter-group').length > 1) {
-                groupContainer.remove();
-              } else {
-                alert("Cannot remove the last item in a group. Every group needs at least one condition or subgroup.");
-              }
-            } else {
-              alert("Cannot remove the root group.");
-            }
-          };
-          
-          groupHeader.appendChild(operatorLabel);
-          groupHeader.appendChild(operatorSelect);
-          groupHeader.appendChild(removeButton);
-          
-          // Container for group items (conditions or nested groups)
-          const groupItems = document.createElement('div');
-          groupItems.className = 'filter-group-items';
-          
-          // If no items provided, add a default condition
-          if (!items || items.length === 0) {
-            groupItems.appendChild(createFilterConditionElement());
-          } else {
-            // Add each provided item
-            items.forEach(item => {
-              if (typeof item === 'function') {
-                groupItems.appendChild(item());
-              } else {
-                groupItems.appendChild(item);
-              }
-            });
-          }
-          
-          // Add buttons for adding conditions or nested groups
-          const buttonsContainer = document.createElement('div');
-          buttonsContainer.className = 'group-buttons';
-          buttonsContainer.style.display = 'flex';
-          buttonsContainer.style.marginTop = '10px';
-          
-          const addConditionButton = document.createElement('button');
-          addConditionButton.is = 'emby-button';
-          addConditionButton.type = 'button';
-          addConditionButton.className = 'raised add-condition-button';
-          addConditionButton.innerHTML = '<span>Add Condition</span>';
-          addConditionButton.onclick = function() {
-            groupItems.appendChild(createFilterConditionElement());
-          };
-          
-          const addGroupButton = document.createElement('button');
-          addGroupButton.is = 'emby-button';
-          addGroupButton.type = 'button';
-          addGroupButton.className = 'raised add-group-button';
-          addGroupButton.innerHTML = '<span>Add Group (Parentheses)</span>';
-          addGroupButton.onclick = function() {
-            groupItems.appendChild(createFilterGroupElement());
-          };
-          
-          buttonsContainer.appendChild(addConditionButton);
-          buttonsContainer.appendChild(addGroupButton);
-          
-          // Add all components to the group container
-          groupContainer.appendChild(groupHeader);
-          groupContainer.appendChild(groupItems);
-          groupContainer.appendChild(buttonsContainer);
-          
-          // Initialize the Emby components
-          setTimeout(() => {
-            if (operatorSelect.embyInit) {
-              operatorSelect.embyInit();
-            } else if (window.EmbyWebComponents && window.EmbyWebComponents.autoFocus) {
-              window.EmbyWebComponents.autoFocus(operatorSelect.parentNode);
-            }
-          }, 0);
-          
-          return groupContainer;
-        }
-        
-        // Function to create a title match pair element (collection with filter expression)
-        function createTitleMatchPairElement(collectionName = '', rootGroup = null) {
-          const container = document.createElement('div');
-          container.className = 'title-match-container';
-          
-          // Create the collection header (name)
-          const collectionHeader = document.createElement('div');
-          collectionHeader.className = 'collection-header';
-          
-          // Collection name input
-          const collectionNameContainer = document.createElement('div');
-          collectionNameContainer.style.flex = '1';
-          
-          const collectionNameInput = document.createElement('input');
-          collectionNameInput.is = 'emby-input';
-          collectionNameInput.type = 'text';
-          collectionNameInput.className = 'collection-name-input';
-          collectionNameInput.style.width = '100%';
-          collectionNameInput.placeholder = 'Collection Name';
-          collectionNameInput.value = collectionName;
-          
-          collectionNameContainer.appendChild(collectionNameInput);
-          
-          // Remove collection button
-          const removeButton = document.createElement('button');
-          removeButton.is = 'emby-button';
-          removeButton.type = 'button';
-          removeButton.className = 'remove-button';
-          removeButton.innerHTML = '<span>✕</span>';
           removeButton.style.minWidth = '32px';
           removeButton.style.height = '32px';
           removeButton.style.padding = '0';
@@ -474,294 +428,228 @@
             container.remove();
           };
           
-          collectionHeader.appendChild(collectionNameContainer);
-          collectionHeader.appendChild(removeButton);
-          
-          // Container for filter expression
-          const filterExpressionRoot = document.createElement('div');
-          filterExpressionRoot.className = 'filter-expression-root';
-          
-          // Create the root filter group if not provided
-          if (!rootGroup) {
-            filterExpressionRoot.appendChild(createFilterGroupElement());
-          } else {
-            filterExpressionRoot.appendChild(rootGroup);
-          }
-          
-          // Add all components to the main container
-          container.appendChild(collectionHeader);
-          container.appendChild(filterExpressionRoot);
+          // Add all components to container in order
+          container.appendChild(matchTypeContainer);
+          container.appendChild(mediaTypeContainer); // Add media type dropdown
+          container.appendChild(titleMatchContainer);
+          container.appendChild(collectionNameContainer);
+          container.appendChild(caseCheckContainer);
+          container.appendChild(removeButton);
           
           return container;
         }
-        
-        // Helper function to collect the data from the filter expression UI
-        function buildFilterExpressionFromUI(groupElement) {
-          // Get the logical operator for this group
-          const operatorSelect = groupElement.querySelector(':scope > .filter-group-header > .logical-operator-select');
-          const logicalOperator = parseInt(operatorSelect.value, 10);
-          
-          // Create the filter group object
-          const group = {
-            type: 1, // Group type
-            operator: logicalOperator,
-            items: []
-          };
-          
-          // Process each item in the group (conditions and nested groups)
-          const itemsContainer = groupElement.querySelector(':scope > .filter-group-items');
-          const itemElements = itemsContainer.querySelectorAll(':scope > .filter-condition, :scope > .filter-group');
-          
-          itemElements.forEach(itemElement => {
-            if (itemElement.classList.contains('filter-condition')) {
-              // Process filter condition
-              const matchValueInput = itemElement.querySelector('.title-match-input');
-              const caseSensitiveCheckbox = itemElement.querySelector('.case-sensitive-checkbox');
-              const matchTypeSelect = itemElement.querySelector('.match-type-select');
-              
-              if (matchValueInput && matchValueInput.value.trim()) {
-                const matchValue = matchValueInput.value.trim();
-                const caseSensitive = caseSensitiveCheckbox ? caseSensitiveCheckbox.checked : false;
-                const matchTypeValue = parseInt(matchTypeSelect ? matchTypeSelect.value : '0', 10);
-                
-                // Convert numeric value to enum string representation
-                let matchTypeString;
-                switch (matchTypeValue) {
-                  case 0: matchTypeString = "Title"; break;
-                  case 1: matchTypeString = "Genre"; break;
-                  case 2: matchTypeString = "Studio"; break;
-                  case 3: matchTypeString = "Actor"; break;
-                  case 4: matchTypeString = "Director"; break;
-                  default: matchTypeString = "Title";
-                }
-                
-                // Add the condition to the group
-                group.items.push({
-                  type: 0, // Condition type
-                  condition: {
-                    MatchValue: matchValue,
-                    CaseSensitive: caseSensitive,
-                    MatchType: matchTypeString
-                  }
-                });
-              }
-            } 
-            else if (itemElement.classList.contains('filter-group')) {
-              // Process nested filter group recursively
-              const nestedGroup = buildFilterExpressionFromUI(itemElement);
-              if (nestedGroup && nestedGroup.items && nestedGroup.items.length > 0) {
-                group.items.push(nestedGroup);
-              }
-            }
-          });
-          
-          return group;
-        }
-        
-        // Function to convert legacy format to basic filter expression
-        function convertLegacyFormatToExpression(pair) {
-          if (!pair) return null;
-          
-          // Create a root group
-          const rootGroup = {
-            type: 1, // Group type
-            operator: pair.LogicalOperator || 0, // Default to OR
-            items: []
-          };
-          
-          // If we have filter conditions, add them to the root group
-          if (pair.FilterConditions && pair.FilterConditions.length > 0) {
-            pair.FilterConditions.forEach(filter => {
-              if (filter.MatchValue) {
-                rootGroup.items.push({
-                  type: 0, // Condition type
-                  condition: {
-                    MatchValue: filter.MatchValue,
-                    CaseSensitive: !!filter.CaseSensitive,
-                    MatchType: filter.MatchType
-                  }
-                });
-              }
-            });
-          }
-          // Otherwise, create a single condition from the legacy fields
-          else if (pair.TitleMatch) {
-            rootGroup.items.push({
-              type: 0, // Condition type
-              condition: {
-                MatchValue: pair.TitleMatch,
-                CaseSensitive: !!pair.CaseSensitive,
-                MatchType: pair.MatchType
-              }
-            });
-          }
-          
-          return rootGroup;
-        }
-        
-        // Function to build UI elements from a filter expression object
-        function createFilterGroupElementFromExpression(group) {
-          if (!group || !group.items) return createFilterGroupElement();
-          
-          // Create items for the group
-          const items = [];
-          
-          group.items.forEach(item => {
-            if (item.type === 0 && item.condition) {
-              // Convert match type string to numeric value
-              let matchTypeValue = 0;
-              if (typeof item.condition.MatchType === 'string') {
-                switch (item.condition.MatchType) {
-                  case "Title": matchTypeValue = 0; break;
-                  case "Genre": matchTypeValue = 1; break;
-                  case "Studio": matchTypeValue = 2; break;
-                  case "Actor": matchTypeValue = 3; break;
-                  case "Director": matchTypeValue = 4; break;
-                  default: matchTypeValue = 0;
-                }
-              } else if (typeof item.condition.MatchType === 'number') {
-                matchTypeValue = item.condition.MatchType;
-              }
-              
-              // Create a condition element
-              items.push(createFilterConditionElement(
-                item.condition.MatchValue, 
-                item.condition.CaseSensitive, 
-                matchTypeValue
-              ));
-            }
-            else if (item.type === 1) {
-              // Create a nested group element recursively
-              items.push(createFilterGroupElementFromExpression(item));
-            }
-          });
-          
-          // Create and return the group element
-          return createFilterGroupElement(group.operator, items);
-        }
-        
-        function loadConfig() {
+          function loadConfig() {
           window.ApiClient.getPluginConfiguration(
             "06ebf4a9-1326-4327-968d-8da00e1ea2eb"
           ) // Plugin Id
             .then(function (config) {
+              // Load simple collections
               const titleMatchPairsContainer = document.querySelector("#title-match-pairs");
               titleMatchPairsContainer.innerHTML = '';
                 
               // Check if we have the TitleMatchPairs property
               if (config.TitleMatchPairs && config.TitleMatchPairs.length > 0) {
-                config.TitleMatchPairs.forEach(pair => {
-                  let rootGroup = null;
-                  
-                  // Check if we have the new filter expression model
-                  if (pair.FilterExpression && pair.FilterExpression.items && pair.FilterExpression.items.length > 0) {
-                    rootGroup = createFilterGroupElementFromExpression(pair.FilterExpression);
+                config.TitleMatchPairs.forEach(pair => {                  
+                  // Convert MatchType enum string to numeric value for the dropdown
+                  let matchTypeValue = 0; // Default to Title
+                  if (pair.MatchType !== undefined) {
+                    switch (pair.MatchType) {
+                      case "Title":
+                        matchTypeValue = 0;
+                        break;
+                      case "Genre":
+                        matchTypeValue = 1;
+                        break;
+                      case "Studio":
+                        matchTypeValue = 2;
+                        break;
+                      case "Actor":
+                        matchTypeValue = 3;
+                        break;
+                      case "Director":
+                        matchTypeValue = 4;
+                        break;
+                      // Fallback for numeric values (backward compatibility)
+                      default:
+                        if (typeof pair.MatchType === 'number') {
+                          matchTypeValue = pair.MatchType;
+                        }
+                    }
                   }
-                  // Otherwise, convert from the older formats
-                  else {
-                    const expression = convertLegacyFormatToExpression(pair);
-                    rootGroup = createFilterGroupElementFromExpression(expression);
+
+                  // Convert MediaType enum to numeric value for the dropdown
+                  let mediaTypeValue = 0; // Default to All
+                  if (pair.MediaType !== undefined) {
+                    switch (pair.MediaType) {
+                      case "All":
+                        mediaTypeValue = 0;
+                        break;
+                      case "Movies":
+                        mediaTypeValue = 1;
+                        break;
+                      case "Series":
+                        mediaTypeValue = 2;
+                        break;
+                      // Fallback for numeric values (backward compatibility)
+                      default:
+                        if (typeof pair.MediaType === 'number') {
+                          mediaTypeValue = pair.MediaType;
+                        }
+                    }
                   }
                   
-                  // Create the collection element with its filter expression
-                  const element = createTitleMatchPairElement(pair.CollectionName, rootGroup);
+                  const element = createTitleMatchPairElement(
+                    pair.TitleMatch, 
+                    pair.CollectionName, 
+                    pair.CaseSensitive, 
+                    matchTypeValue,
+                    mediaTypeValue
+                  );
                   titleMatchPairsContainer.appendChild(element);
                 });
               } 
               else {
-                // If no configuration exists yet, add one empty collection
+                // If no configuration exists yet, add one empty row
                 const element = createTitleMatchPairElement();
                 titleMatchPairsContainer.appendChild(element);
+              }
+              
+
+              // Load expression collections
+              const expressionCollectionsContainer = document.querySelector("#expression-collections");
+              expressionCollectionsContainer.innerHTML = '';
+              
+
+              // Check if we have the ExpressionCollections property
+              if (config.ExpressionCollections && config.ExpressionCollections.length > 0) {
+                config.ExpressionCollections.forEach(collection => {
+                  const element = createExpressionCollectionElement(
+                    collection.Expression,
+                    collection.CollectionName,
+                    collection.CaseSensitive
+                  );
+                  expressionCollectionsContainer.appendChild(element);
+                });
+              } else {
+                // If no expression collections exist yet, add one empty row
+                const element = createExpressionCollectionElement();
+                expressionCollectionsContainer.appendChild(element);
               }
             })
             .catch(function (error) {
               console.error(error);
-              // Add an empty collection if there's an error
-              const element = createTitleMatchPairElement();
-              document.querySelector("#title-match-pairs").appendChild(element);
+              // Add empty rows if there's an error
+              const titleElement = createTitleMatchPairElement();
+              document.querySelector("#title-match-pairs").appendChild(titleElement);
+              
+              const expressionElement = createExpressionCollectionElement();
+              document.querySelector("#expression-collections").appendChild(expressionElement);
             });
-        }
+        }        function saveConfig() {
+          // Validate expressions before saving
+          let allExpressionContainers = document.querySelectorAll('.expression-container');
+          let hasErrors = false;
           
-        function saveConfig() {
+          allExpressionContainers.forEach(container => {
+            const expressionInput = container.querySelector('.expression-input');
+            if (expressionInput && expressionInput.value.trim()) {
+              const result = validateExpression(expressionInput.value);
+              if (!result.valid) {
+                hasErrors = true;
+                alert(`Expression error: ${result.error} in collection "${container.querySelector('.collection-name-input').value || 'Unnamed'}"`);
+              }
+            }
+          });
+          
+          if (hasErrors) {
+            return; // Don't save if there are validation errors
+          }
+          
+          // Process simple collections
           const titleMatchContainers = document.querySelectorAll('.title-match-container');
           const titleMatchPairs = [];
             
           titleMatchContainers.forEach(container => {
-            // Get collection name
+            // Handle our new nested structure
+            const titleMatchInput = container.querySelector('.title-match-input');
             const collectionNameInput = container.querySelector('.collection-name-input');
-            const collectionName = collectionNameInput.value.trim();
-            
-            // Get the root filter group
-            const rootGroupElement = container.querySelector('.filter-expression-root > .filter-group');
-            
-            if (rootGroupElement && collectionName) {
-              // Build the filter expression from the UI
-              const filterExpression = buildFilterExpressionFromUI(rootGroupElement);
-              
-              // Only add if we have valid conditions
-              if (filterExpression.items.length > 0) {
-                // For backward compatibility, also set the TitleMatch and MatchType fields
-                // using the first condition if available
-                let firstCondition = null;
-                let firstOperator = 0;
-                
-                // Find the first actual condition in the expression
-                const findFirstCondition = (group) => {
-                  if (!group || !group.items) return null;
-                  
-                  for (const item of group.items) {
-                    if (item.type === 0 && item.condition) {
-                      firstOperator = group.operator;
-                      return item.condition;
-                    }
-                    else if (item.type === 1) {
-                      const nestedCondition = findFirstCondition(item);
-                      if (nestedCondition) return nestedCondition;
-                    }
-                  }
-                  return null;
-                };
-                
-                firstCondition = findFirstCondition(filterExpression);
-                
-                // Create filter conditions list for backward compatibility
-                const flattenConditions = (group) => {
-                  if (!group || !group.items) return [];
-                  
-                  let conditions = [];
-                  
-                  for (const item of group.items) {
-                    if (item.type === 0 && item.condition) {
-                      conditions.push(item.condition);
-                    }
-                    else if (item.type === 1) {
-                      conditions = conditions.concat(flattenConditions(item));
-                    }
-                  }
-                  
-                  return conditions;
-                };
-                
-                const filterConditions = flattenConditions(filterExpression);
-                
-                // Create the full title match pair object
-                const titleMatchPair = {
-                  TitleMatch: firstCondition ? firstCondition.MatchValue : '',
-                  CollectionName: collectionName,
-                  CaseSensitive: firstCondition ? firstCondition.CaseSensitive : false,
-                  MatchType: firstCondition ? firstCondition.MatchType : "Title",
-                  FilterConditions: filterConditions,
-                  LogicalOperator: firstOperator,
-                  FilterExpression: filterExpression
-                };
-                
-                titleMatchPairs.push(titleMatchPair);
+            const caseSensitiveCheckbox = container.querySelector('.case-sensitive-checkbox');
+            const matchTypeSelect = container.querySelector('.match-type-select');
+            const mediaTypeSelect = container.querySelector('.media-type-select');
+              if (titleMatchInput.value.trim()) {
+              const titleMatch = titleMatchInput.value.trim();
+              const collectionName = collectionNameInput.value.trim();
+              const caseSensitive = caseSensitiveCheckbox.checked;
+              // Convert numeric value to enum string representation
+              const matchTypeValue = parseInt(matchTypeSelect.value, 10);
+              let matchTypeString;
+              switch (matchTypeValue) {
+                case 0:
+                  matchTypeString = "Title";
+                  break;
+                case 1:
+                  matchTypeString = "Genre";
+                  break;
+                case 2:
+                  matchTypeString = "Studio";
+                  break;
+                case 3:
+                  matchTypeString = "Actor";
+                  break;
+                case 4:
+                  matchTypeString = "Director";
+                  break;
+                default:
+                  matchTypeString = "Title";
               }
+              
+
+              // Convert numeric value to enum string representation for media type
+              const mediaTypeValue = parseInt(mediaTypeSelect.value, 10);
+              let mediaTypeString;
+              switch (mediaTypeValue) {
+                case 0:
+                  mediaTypeString = "All";
+                  break;
+                case 1:
+                  mediaTypeString = "Movies";
+                  break;
+                case 2:
+                  mediaTypeString = "Series";
+                  break;
+                default:
+                  mediaTypeString = "All";
+              }
+              
+              titleMatchPairs.push({
+                TitleMatch: titleMatch,
+                CollectionName: collectionName || null, // Use null if collection name is empty
+                CaseSensitive: caseSensitive,
+                MatchType: matchTypeString,
+                MediaType: mediaTypeString
+              });
+            }
+          });
+            // Process expression collections
+          const expressionCollections = [];
+          
+          allExpressionContainers.forEach(container => {
+            const expressionInput = container.querySelector('.expression-input');
+            const collectionNameInput = container.querySelector('.collection-name-input');
+            const caseSensitiveCheckbox = container.querySelector('.case-sensitive-checkbox');
+            
+            if (expressionInput.value.trim()) {
+              expressionCollections.push({
+                Expression: expressionInput.value.trim(),
+                CollectionName: collectionNameInput.value.trim() || "Expression Collection",
+                CaseSensitive: caseSensitiveCheckbox.checked
+              });
             }
           });
           
           const config = {
             TitleMatchPairs: titleMatchPairs,
+            ExpressionCollections: expressionCollections,
             // Keep these empty for backward compatibility
             TagTitlePairs: [],
             Tags: []
@@ -777,7 +665,8 @@
               alert("Error saving configuration");
             });
         }
-          function execute() {
+        
+        function execute() {
           var request = {
             url: ApiClient.getUrl("/AutoCollections/AutoCollections"),
             type: "POST"
@@ -792,9 +681,7 @@
                 message: "Unexpected error occurred!"
               });
             });
-        }
-
-        // Initialize the page
+        }        // Initialize the page
         loadConfig();
         
         // Add event listeners
@@ -802,7 +689,89 @@
         document.querySelector("#add-title-match-button").addEventListener("click", function() {
           const element = createTitleMatchPairElement();
           document.querySelector("#title-match-pairs").appendChild(element);
+        });        document.querySelector("#add-expression-collection-button").addEventListener("click", function() {
+          const element = createExpressionCollectionElement();
+          document.querySelector("#expression-collections").appendChild(element);
+          // Setup validation for the new expression input
+          setupExpressionValidation();
         });
+        
+        // Setup validation for initial expression inputs
+        setupExpressionValidation();
+        
+        // Function to validate the expression syntax (simplified version)
+        function validateExpression(expressionText) {
+          if (!expressionText || expressionText.trim() === '') {
+            return { valid: false, error: "Expression cannot be empty" };
+          }
+          
+          // Simple validation - make sure quotes are properly paired
+          const quoteCount = (expressionText.match(/"/g) || []).length;
+          if (quoteCount % 2 !== 0) {
+            return { valid: false, error: "Mismatched quotes in expression" };
+          }
+          
+          // Check for balanced parentheses
+          const openParens = (expressionText.match(/\(/g) || []).length;
+          const closeParens = (expressionText.match(/\)/g) || []).length;
+          if (openParens !== closeParens) {
+            return { valid: false, error: "Mismatched parentheses in expression" };
+          }
+          
+          // Check for at least one criteria type
+          const criteriaTypes = ["TITLE", "GENRE", "STUDIO", "ACTOR", "DIRECTOR", "MOVIE", "SHOW"];
+          let hasCriteria = false;
+          
+          for (const type of criteriaTypes) {
+            if (expressionText.toUpperCase().includes(type)) {
+              hasCriteria = true;
+              break;
+            }
+          }
+          
+          if (!hasCriteria) {
+            return { valid: false, error: "Expression must contain at least one criteria (TITLE, GENRE, STUDIO, ACTOR, DIRECTOR, MOVIE, or SHOW)" };
+          }
+          
+          return { valid: true };
+        }
+        
+        // Add real-time validation to expression inputs
+        function setupExpressionValidation() {
+          const expressionContainers = document.querySelectorAll('.expression-container');
+          
+          expressionContainers.forEach(container => {
+            const expressionInput = container.querySelector('.expression-input');
+            if (expressionInput) {
+              expressionInput.addEventListener('blur', function() {
+                const result = validateExpression(expressionInput.value);
+                
+                // Remove any existing error message
+                const existingError = container.querySelector('.expression-error');
+                if (existingError) {
+                  existingError.remove();
+                }
+                
+                // Add error message if validation failed
+                if (!result.valid) {
+                  const errorElement = document.createElement('div');
+                  errorElement.className = 'expression-error';
+                  errorElement.style.color = 'red';
+                  errorElement.style.fontSize = '0.9em';
+                  errorElement.style.marginTop = '5px';
+                  errorElement.textContent = result.error;
+                  
+
+                  // Insert after the expression input
+                  expressionInput.parentNode.appendChild(errorElement);
+                }
+              });
+            }
+          });
+        }
+        
+        // Initialize expression validation on load
+        setupExpressionValidation();
       </script>
     </div>
   </body>

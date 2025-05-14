@@ -5,19 +5,6 @@ using System.Linq;
 
 namespace Jellyfin.Plugin.AutoCollections.Configuration
 {
-    // Enum for combining filter conditions
-    public enum LogicalOperator
-    {
-        Or = 0,  // Any condition can match (default)
-        And = 1  // All conditions must match
-    }
-    
-    // Expression item type - can be a filter condition or a group
-    public enum ExpressionItemType
-    {
-        Condition = 0, // A single filter condition
-        Group = 1     // A group of conditions (with its own operator)
-    }
     // Kept for backward compatibility
     public enum TagMatchingMode
     {
@@ -78,83 +65,24 @@ namespace Jellyfin.Plugin.AutoCollections.Configuration
         Studio = 2,  // Match by studio
         Actor = 3,   // Match by actor
         Director = 4 // Match by director
-    }    // Represents a single filter condition
-    public class FilterCondition
+    }
+    
+    // Media types for filtering collections
+    public enum MediaTypeFilter
     {
-        public string MatchValue { get; set; }
-        public bool CaseSensitive { get; set; }
-        public MatchType MatchType { get; set; }
+        All = 0,    // Include all media types (default)
+        Movies = 1,  // Only include movies
+        Series = 2   // Only include TV series
+    }
 
-        // Add parameterless constructor for XML serialization
-        public FilterCondition()
-        {
-            MatchValue = string.Empty;
-            CaseSensitive = false; // Default to case insensitive
-            MatchType = MatchType.Title; // Default to title matching
-        }
-
-        public FilterCondition(string matchValue, bool caseSensitive = false, MatchType matchType = MatchType.Title)
-        {
-            MatchValue = matchValue;
-            CaseSensitive = caseSensitive;
-            MatchType = matchType;
-        }
-    }
-    
-    // Base class for filter expressions (conditions or groups)
-    public abstract class FilterExpression
-    {
-        public ExpressionItemType Type { get; set; }
-        
-        protected FilterExpression(ExpressionItemType type)
-        {
-            Type = type;
-        }
-    }
-    
-    // A filter expression that represents a single condition
-    public class FilterConditionExpression : FilterExpression
-    {
-        public FilterCondition Condition { get; set; }
-        
-        public FilterConditionExpression() : base(ExpressionItemType.Condition)
-        {
-            Condition = new FilterCondition();
-        }
-        
-        public FilterConditionExpression(FilterCondition condition) : base(ExpressionItemType.Condition)
-        {
-            Condition = condition ?? new FilterCondition();
-        }
-    }
-    
-    // A filter expression that represents a group of conditions or other groups
-    public class FilterGroupExpression : FilterExpression
-    {
-        public List<FilterExpression> Items { get; set; }
-        public LogicalOperator Operator { get; set; }
-        
-        public FilterGroupExpression() : base(ExpressionItemType.Group)
-        {
-            Items = new List<FilterExpression>();
-            Operator = LogicalOperator.Or; // Default to OR
-        }
-        
-        public FilterGroupExpression(LogicalOperator op) : base(ExpressionItemType.Group)
-        {
-            Items = new List<FilterExpression>();
-            Operator = op;
-        }
-    }    // Class for match-based collections (previously title-based only)
+    // Class for match-based collections (previously title-based only)
     public class TitleMatchPair
     {
-        public string TitleMatch { get; set; } // Kept for backward compatibility
+        public string TitleMatch { get; set; }
         public string CollectionName { get; set; }
-        public bool CaseSensitive { get; set; } // Kept for backward compatibility
-        public MatchType MatchType { get; set; } // Kept for backward compatibility
-        public List<FilterCondition> FilterConditions { get; set; } // Kept for backward compatibility
-        public LogicalOperator LogicalOperator { get; set; } // Kept for backward compatibility (how to combine filter conditions)
-        public FilterGroupExpression FilterExpression { get; set; } // New model with support for nested groups and complex expressions
+        public bool CaseSensitive { get; set; }
+        public MatchType MatchType { get; set; }
+        public MediaTypeFilter MediaType { get; set; }
 
         // Add parameterless constructor for XML serialization
         public TitleMatchPair()
@@ -163,32 +91,18 @@ namespace Jellyfin.Plugin.AutoCollections.Configuration
             CollectionName = "Auto Collection";
             CaseSensitive = false; // Default to case insensitive
             MatchType = MatchType.Title; // Default to title matching for backward compatibility
-            FilterConditions = new List<FilterCondition>();
-            LogicalOperator = LogicalOperator.Or; // Default to OR for backward compatibility
-            FilterExpression = new FilterGroupExpression(); // Initialize with empty root group
+            MediaType = MediaTypeFilter.All; // Default to include all media types
         }
 
-        public TitleMatchPair(string titleMatch, string collectionName = null, bool caseSensitive = false, MatchType matchType = MatchType.Title)
+        public TitleMatchPair(string titleMatch, string collectionName = null, bool caseSensitive = false, 
+                              MatchType matchType = MatchType.Title, MediaTypeFilter mediaType = MediaTypeFilter.All)
         {
             TitleMatch = titleMatch;
             CollectionName = collectionName ?? GetDefaultCollectionName(titleMatch, matchType);
             CaseSensitive = caseSensitive;
             MatchType = matchType;
-            
-            // Initialize with a single filter condition for backward compatibility
-            FilterConditions = new List<FilterCondition>
-            {
-                new FilterCondition(titleMatch, caseSensitive, matchType)
-            };
-            LogicalOperator = LogicalOperator.Or;
-            
-            // Initialize with a root group containing a single condition
-            var condition = new FilterCondition(titleMatch, caseSensitive, matchType);
-            var conditionExpr = new FilterConditionExpression(condition);
-            
-            FilterExpression = new FilterGroupExpression(LogicalOperator.Or);
-            FilterExpression.Items.Add(conditionExpr);
-        }private static string GetDefaultCollectionName(string matchString, MatchType matchType)
+            MediaType = mediaType;
+        }        private static string GetDefaultCollectionName(string matchString, MatchType matchType)
         {
             if (string.IsNullOrEmpty(matchString))
                 return "Auto Collection";
@@ -202,14 +116,13 @@ namespace Jellyfin.Plugin.AutoCollections.Configuration
                 _ => $"{matchString} Movies" // Default for Title and any future types
             };
         }
-    }
-
-    public class PluginConfiguration : BasePluginConfiguration
+    }    public class PluginConfiguration : BasePluginConfiguration
     {
         public PluginConfiguration()
         {
             // Initialize with empty lists - defaults will be added by Plugin.cs only on first run
             TitleMatchPairs = new List<TitleMatchPair>();
+            ExpressionCollections = new List<ExpressionCollection>();
             
             // Keep these for backward compatibility but they won't be used
             TagTitlePairs = new List<TagTitlePair>();
@@ -217,6 +130,9 @@ namespace Jellyfin.Plugin.AutoCollections.Configuration
         }
 
         public List<TitleMatchPair> TitleMatchPairs { get; set; }
+        
+        // New property for expression-based collections
+        public List<ExpressionCollection> ExpressionCollections { get; set; }
         
         // Keep these for backward compatibility but they won't be used
         [Obsolete("Use TitleMatchPairs instead")]
