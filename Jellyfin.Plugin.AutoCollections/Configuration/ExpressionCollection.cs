@@ -365,18 +365,18 @@ namespace Jellyfin.Plugin.AutoCollections.Configuration
             }
             
             return false;
-        }
-
-        private bool TryMatchCriteria(string expression, ref int position, string criteria, out Token token)
+        }        private bool TryMatchCriteria(string expression, ref int position, string criteria, out Token token)
         {
             token = null;
             
             if (position + criteria.Length <= expression.Length &&
                 expression.Substring(position, criteria.Length).Equals(criteria, StringComparison.OrdinalIgnoreCase))
             {
-                // Check if it's a whole word (followed by whitespace)
+                // Check if it's a whole word (followed by whitespace, parenthesis, or end of string)
                 if (position + criteria.Length == expression.Length || 
-                    char.IsWhiteSpace(expression[position + criteria.Length]))
+                    char.IsWhiteSpace(expression[position + criteria.Length]) ||
+                    expression[position + criteria.Length] == '(' ||
+                    expression[position + criteria.Length] == ')')
                 {
                     position += criteria.Length;
                     

@@ -18,7 +18,9 @@ The original plugin by johnpc allowed users to:
 ### What This Enhanced Version Does
 
 This fork extends the original functionality with:
-- **Multiple Matching Methods**: Match content by Title, Studio, or Genre (not Tags if you want tags use the original)
+- **Multiple Matching Methods**: Match content by Title, Studio, Genre, Actor, or Director
+- **Media Type Filtering**: Filter collections to include only movies, only TV shows, or both
+- **Advanced Expression Support**: Create complex collections using boolean expressions (AND, OR, NOT)
 - **Flexible Matching**: More options to create diverse and useful collections
 - **Extensible Code**: Structured for easy addition of future matching types
 
@@ -34,6 +36,12 @@ With this enhanced version, you can:
 
 3. **Genre-based Collections**: Organize content by genre
    - Example: Match "Thriller" to create a dedicated Thriller collection
+   
+4. **Media Type Filtering**: Separate movies from TV shows
+   - Example: Match "Action" genre but only include movies, not TV shows
+
+5. **Advanced Collections**: Create collections using boolean expressions
+   - Example: `STUDIO "Marvel" AND (GENRE "Action" OR ACTOR "Robert Downey Jr.")`
 
 The Auto Collections are kept up to date each time the task runs, automatically adding or removing items as they match or no longer match your criteria.
 
@@ -66,15 +74,42 @@ This project does not use or distribute any copyrighted media content.
 
 ## User Guide
 
+### Simple Collections
+
 1. To set it up, visit `Dashboard -> Plugins -> My Plugins -> Auto Collections`
 2. For each auto collection you want to create:
-   - Select the match type (Title, Studio, or Genre) from the dropdown
+   - Select the match type (Title, Studio, Genre, Actor, or Director) from the dropdown
+   - Select the media type (All, Movies, or Shows) from the dropdown
    - Enter the string to match
    - Provide a custom collection name (optional)
    - Choose whether the match should be case-sensitive (optional)
 3. Click "Save"
 4. Click "Sync Auto Collections" to update your collections immediately
 5. Your Collections now exist!
+
+### Advanced Collections
+
+For more complex collections, you can use the Advanced Collections feature:
+
+1. In the Auto Collections settings, scroll to the "Advanced Collections" section
+2. For each advanced collection:
+   - Enter a collection name
+   - Create an expression using the following syntax:
+     - `TITLE "text"` - Match items with "text" in the title
+     - `GENRE "name"` - Match items with "name" genre
+     - `STUDIO "name"` - Match items from "name" studio
+     - `ACTOR "name"` - Match items with "name" actor
+     - `DIRECTOR "name"` - Match items with "name" director
+     - `MOVIE` - Match only movies
+     - `SHOW` - Match only TV shows
+     - Combine with `AND`, `OR`, `NOT`, and parentheses
+   - Choose whether the matches should be case-sensitive (optional)
+3. Click "Save" and then "Sync Auto Collections"
+
+Example expressions:
+- `TITLE "Star Wars" AND MOVIE` - Only Star Wars movies
+- `GENRE "Comedy" AND SHOW` - Only comedy TV shows
+- `STUDIO "Marvel" AND (MOVIE OR ACTOR "Chris Evans")` - Marvel movies or anything with Chris Evans
 
 Note: The Auto Collections Sync task is also available in your Scheduled Tasks section and runs automatically every 24 hours.
 
