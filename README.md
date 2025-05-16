@@ -1,9 +1,3 @@
-<h1 align="center">Jellyfin AutoCollections Plugin</h1>
-
-<p align="center">
-An enhanced version of Jellyfin Smart Collections Plugin that creates Auto Collections based on Title, Studio, or Genre matching
-</p>
-
 ## About This Fork
 
 This is an enhanced version of the [original Smart Collections Plugin](https://github.com/johnpc/jellyfin-plugin-smart-collections) by johnpc. The original plugin was designed to create collections based on Tags in your Jellyfin library.
@@ -18,13 +12,21 @@ The original plugin by johnpc allowed users to:
 ### What This Enhanced Version Does
 
 This fork extends the original functionality with:
-- **Multiple Matching Methods**: Match content by Title, Studio, Genre, Actor, or Director
+- **Two Collection Modes**:
+  - **Simple Collections**: Quick setup with single-criterion filtering
+  - **Advanced Collections**: Complex filtering with boolean logic expressions
+- **Multiple Matching Methods**: Match content by Title, Studio, Genre, Actor, Director, Tags, and more
 - **Media Type Filtering**: Filter collections to include only movies, only TV shows, or both
 - **Advanced Expression Support**: Create complex collections using boolean expressions (AND, OR, NOT)
-- **Enhanced Filtering**: Filter by tags, parental ratings, community ratings, critics ratings, and production locations
+- **Enhanced Filtering Options**:
+  - Filter by content metadata (title, genre, studio, actor, director, tags)
+  - Filter by ratings (parental ratings, community ratings, critics ratings)
+  - Filter by production locations/countries
+
+- **Boolean Logic**: Combine multiple criteria with AND, OR, NOT operators and parentheses grouping
 - **Import/Export**: Easily backup and restore your collection configurations as JSON
-- **Flexible Matching**: More options to create diverse and useful collections
-- **Extensible Code**: Structured for easy addition of future matching types
+- **Case Sensitivity Control**: Choose whether matches should be case-sensitive or not
+- **Scheduled Synchronization**: Collections automatically update on a schedule
 
 ## Examples of What You Can Do
 
@@ -89,50 +91,96 @@ This project does not use or distribute any copyrighted media content.
 
 ## User Guide
 
+The Auto Collections plugin offers two modes for creating collections: **Simple Collections** and **Advanced Collections**.
+
 ### Simple Collections
 
+Simple Collections provide an easy-to-use interface for creating basic collections with a single filter criterion.
+
 1. To set it up, visit `Dashboard -> Plugins -> My Plugins -> Auto Collections`
-2. For each auto collection you want to create:
-   - Select the match type (Title, Studio, Genre, Actor, or Director) from the dropdown
-   - Select the media type (All, Movies, or Shows) from the dropdown
-   - Enter the string to match
-   - Provide a custom collection name (optional)
-   - Choose whether the match should be case-sensitive (optional)
+2. For each simple auto collection you want to create:
+   - **Match Type**: Select one of the following from the dropdown:
+     - **Title**: Match by words or phrases in the title
+     - **Studio**: Match by production studio
+     - **Genre**: Match by genre
+     - **Actor**: Match by actor name
+     - **Director**: Match by director name
+   - **Media Type**: Filter the collection content by:
+     - **All**: Include both movies and TV shows (default)
+     - **Movies**: Include only movies
+     - **Shows**: Include only TV shows
+   - **String to Match**: Enter the text to match against the selected match type
+   - **Collection Name**: Provide a custom collection name (optional)
+   - **Case Sensitive**: Choose whether the match should be case-sensitive (optional)
 3. Click "Save"
 4. Click "Sync Auto Collections" to update your collections immediately
 5. Your Collections now exist!
 
+**Simple Collection Limitations:**
+- Each simple collection uses exactly one match criterion (Title, Studio, etc.)
+- Cannot combine multiple criteria (e.g., can't match both a title AND a genre)
+- Cannot use complex filtering beyond the basic media type filter
+
 ### Advanced Collections
 
-For more complex collections, you can use the Advanced Collections feature:
+Advanced Collections provide much more powerful filtering capabilities with boolean expressions.
 
 1. In the Auto Collections settings, scroll to the "Advanced Collections" section
 2. For each advanced collection:
-   - Enter a collection name
-   - Create an expression using the following syntax:
+   - **Collection Name**: Enter a name for your collection
+   - **Expression**: Create a boolean expression using the following criteria types:
+
+     **Content Metadata Filters:**
      - `TITLE "text"` - Match items with "text" in the title
      - `GENRE "name"` - Match items with "name" genre
      - `STUDIO "name"` - Match items from "name" studio
      - `ACTOR "name"` - Match items with "name" actor
      - `DIRECTOR "name"` - Match items with "name" director
      - `TAG "tag"` - Match items with "tag" in their tags
-     - `PARENTALRATING "rating"` - Match items with specific parental rating (e.g., "PG-13", "R")
-     - `COMMUNITYRATING "value"` - Match items by community rating (supports `>8.5`, `<5`, `>=7`, etc.)
-     - `CRITICSRATING "value"` - Match items by critics rating (supports comparison operators)
      - `PRODUCTIONLOCATION "location"` - Match items by production country/location
+
+     **Rating Filters:**
+     - `PARENTALRATING "rating"` - Match items with specific parental rating (e.g., "PG-13", "R")
+     - `COMMUNITYRATING "value"` - Match items by community rating (supports comparison operators)
+     - `CRITICSRATING "value"` - Match items by critics rating (supports comparison operators)
+
+     **Media Type Filters:**
      - `MOVIE` - Match only movies
      - `SHOW` - Match only TV shows
-   - Combine with boolean operators AND, OR, and NOT
-   - Use parentheses for grouping
+     
+     **Logic Operators:**
+     - `AND` - Both conditions must be true
+     - `OR` - Either condition can be true
+     - `NOT` - Negate a condition
+     - Use parentheses `()` for grouping expressions
+
+   - **Case Sensitive**: Choose whether the matches should be case-sensitive (optional)
+3. Click "Save" and then "Sync Auto Collections"
+
+**Advanced Collection Benefits:**
+- Combine multiple criteria (e.g., match a genre AND a specific actor)
+- Create complex exclusion rules (e.g., match a genre BUT NOT a certain director)
+- Use parentheses to group expressions for complex logic
+- Apply multiple filters simultaneously
+- Create highly specific, targeted collections
 
 ### Numeric Rating Syntax
 
-For community and critics ratings, you can use comparison operators:
+For community and critics ratings in Advanced Collections, you can use comparison operators:
 - `COMMUNITYRATING ">8"` - Greater than 8
 - `COMMUNITYRATING ">=9.5"` - Greater than or equal to 9.5
 - `COMMUNITYRATING "<6"` - Less than 6
 - `COMMUNITYRATING "=7"` - Exactly 7
 - `COMMUNITYRATING "7"` - Exactly 7 (equals sign is optional)
+
+### Useful Advanced Expression Examples
+
+- **Recent High-Quality Movies**: `MOVIE AND COMMUNITYRATING ">7.5" AND CRITICSRATING ">70"`
+- **Family-Friendly Content**: `PARENTALRATING "G" OR PARENTALRATING "PG"`
+- **Exclude Specific Content**: `GENRE "Horror" AND NOT DIRECTOR "Jordan Peele"`
+- **Content from Specific Countries**: `PRODUCTIONLOCATION "Japan" AND GENRE "Animation"`
+- **Actor in Multiple Genres**: `ACTOR "Tom Hanks" AND (GENRE "Drama" OR GENRE "Comedy")`
+- **TV Shows with High Ratings**: `SHOW AND COMMUNITYRATING ">8" AND GENRE "Drama"`
 
 ### Import/Export Configuration
 
@@ -141,24 +189,33 @@ You can easily backup and share your collection configurations:
 1. In the Auto Collections settings page, find the Import/Export section
 2. Click "Export Filter Config (JSON)" to download your current configuration
 3. Use "Import Filter Config (JSON)" to upload a configuration file
-     - `DIRECTOR "name"` - Match items with "name" director
-     - `MOVIE` - Match only movies
-     - `SHOW` - Match only TV shows
-     - Combine with `AND`, `OR`, `NOT`, and parentheses
-   - Choose whether the matches should be case-sensitive (optional)
-3. Click "Save" and then "Sync Auto Collections"
+4. Click "Save" and then "Sync Auto Collections"
 
-Example expressions:
-- `TITLE "Star Wars" AND MOVIE` - Only Star Wars movies
-- `GENRE "Comedy" AND SHOW` - Only comedy TV shows
-- `STUDIO "Marvel" AND (MOVIE OR ACTOR "Chris Evans")` - Marvel movies or anything with Chris Evans
+## Scheduled Synchronization
 
-Note: The Auto Collections Sync task is also available in your Scheduled Tasks section and runs automatically every 24 hours.
+The Auto Collections Sync task is available in your Jellyfin Scheduled Tasks section and runs automatically every 24 hours. This ensures that your collections stay up-to-date as new content is added to your library or metadata changes.
+
+You can also manually trigger a sync at any time:
+1. From the Auto Collections plugin settings page by clicking "Sync Auto Collections"
+2. From the Jellyfin Dashboard -> Scheduled Tasks section
+
+## Comparison Between Simple and Advanced Collections
+
+| Feature | Simple Collections | Advanced Collections |
+|---------|-------------------|----------------------|
+| Interface | User-friendly dropdowns | Text-based expression language |
+| Filtering criteria | Single filter per collection | Multiple filters per collection |
+| Boolean logic | Not supported | AND, OR, NOT operators with parentheses |
+| Media type filtering | Basic (All, Movies, Shows) | Same, but can be combined with other criteria |
+| Rating filters | Not supported | Supports parental, community and critics ratings |
+| Comparison operators | Not supported | Supports >, <, >=, <= for numeric values |
+| Case sensitivity | Configurable | Configurable |
+| Best for | Quick, simple collections | Complex, highly specific collections |
 
 ## Credits
 
 - Original plugin by [johnpc](https://github.com/johnpc/jellyfin-plugin-smart-collections)
-- This enhanced fork maintained by [KeksBombe](https://github.com/KeksBombe/jellyfin-plugin-auto-collection)
+- This enhanced fork maintained by [KeksBombe](https://github.com/KeksBombe/jellyfin-plugin-auto-collections)
 
 ## License
 
