@@ -21,6 +21,8 @@ This fork extends the original functionality with:
 - **Multiple Matching Methods**: Match content by Title, Studio, Genre, Actor, or Director
 - **Media Type Filtering**: Filter collections to include only movies, only TV shows, or both
 - **Advanced Expression Support**: Create complex collections using boolean expressions (AND, OR, NOT)
+- **Enhanced Filtering**: Filter by tags, parental ratings, community ratings, critics ratings, and production locations
+- **Import/Export**: Easily backup and restore your collection configurations as JSON
 - **Flexible Matching**: More options to create diverse and useful collections
 - **Extensible Code**: Structured for easy addition of future matching types
 
@@ -42,6 +44,19 @@ With this enhanced version, you can:
 
 5. **Advanced Collections**: Create collections using boolean expressions
    - Example: `STUDIO "Marvel" AND (GENRE "Action" OR ACTOR "Robert Downey Jr.")`
+
+6. **Tag-based Collections**: Group content with specific tags
+   - Example: `TAG "Family-Friendly"` to create a collection of content tagged as family-friendly
+
+7. **Rating-based Collections**: Create collections based on ratings
+   - Example: `PARENTALRATING "PG-13"` for PG-13 content
+   - Example: `COMMUNITYRATING ">8.5"` for highly-rated content (8.5+ stars)
+
+8. **Critics Rating Collections**: Group by critics ratings
+   - Example: `CRITICSRATING ">75"` for critically acclaimed content
+
+9. **Geographic Collections**: Group by production location
+   - Example: `PRODUCTIONLOCATION "France"` for French productions
 
 The Auto Collections are kept up to date each time the task runs, automatically adding or removing items as they match or no longer match your criteria.
 
@@ -99,6 +114,33 @@ For more complex collections, you can use the Advanced Collections feature:
      - `GENRE "name"` - Match items with "name" genre
      - `STUDIO "name"` - Match items from "name" studio
      - `ACTOR "name"` - Match items with "name" actor
+     - `DIRECTOR "name"` - Match items with "name" director
+     - `TAG "tag"` - Match items with "tag" in their tags
+     - `PARENTALRATING "rating"` - Match items with specific parental rating (e.g., "PG-13", "R")
+     - `COMMUNITYRATING "value"` - Match items by community rating (supports `>8.5`, `<5`, `>=7`, etc.)
+     - `CRITICSRATING "value"` - Match items by critics rating (supports comparison operators)
+     - `PRODUCTIONLOCATION "location"` - Match items by production country/location
+     - `MOVIE` - Match only movies
+     - `SHOW` - Match only TV shows
+   - Combine with boolean operators AND, OR, and NOT
+   - Use parentheses for grouping
+
+### Numeric Rating Syntax
+
+For community and critics ratings, you can use comparison operators:
+- `COMMUNITYRATING ">8"` - Greater than 8
+- `COMMUNITYRATING ">=9.5"` - Greater than or equal to 9.5
+- `COMMUNITYRATING "<6"` - Less than 6
+- `COMMUNITYRATING "=7"` - Exactly 7
+- `COMMUNITYRATING "7"` - Exactly 7 (equals sign is optional)
+
+### Import/Export Configuration
+
+You can easily backup and share your collection configurations:
+
+1. In the Auto Collections settings page, find the Import/Export section
+2. Click "Export Filter Config (JSON)" to download your current configuration
+3. Use "Import Filter Config (JSON)" to upload a configuration file
      - `DIRECTOR "name"` - Match items with "name" director
      - `MOVIE` - Match only movies
      - `SHOW` - Match only TV shows

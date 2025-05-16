@@ -107,7 +107,7 @@
                   </button>
                   <div>
                     <label for="import-config-input" style="margin: 0;">
-                      <div is="emby-button" class="raised" style="display: inline-block; cursor: pointer;">
+                      <div is="emby-button" class="raised button-submit" style="display: inline-block; cursor: pointer;">
                         <span>Import Filter Config (JSON)</span>
                       </div>
                       <input id="import-config-input" type="file" accept="application/json" style="display:none;" />
@@ -120,14 +120,20 @@
               <div class="section-divider"></div>
               
               <div class="inputContainer">
-                <label class="inputLabel inputLabelUnfocused" for="expression-collections">Advanced Collections:</label>
-                <div class="help-text">
+                <label class="inputLabel inputLabelUnfocused" for="expression-collections">Advanced Collections:</label>                <div class="help-text">
                   Create collections using complex boolean expressions. Examples:<br>
                   <code>TITLE "Avengers"</code> - Items with "Avengers" in the title<br>
                   <code>STUDIO "Marvel" AND GENRE "Action"</code> - Marvel action items<br>
                   <code>STUDIO "Marvel" AND (TITLE "Spiderman" OR ACTOR "Robert Downey JR.")</code> - Marvel items with Spiderman in the title or starring Robert Downey Jr.<br>
                   <code>GENRE "Action" AND MOVIE</code> - Action movies only (no TV shows)<br>
-                  <code>TITLE "Avengers" OR (GENRE "Action" AND SHOW)</code> - Anything with "Avengers" in the title, plus Action TV shows
+                  <code>TITLE "Avengers" OR (GENRE "Action" AND SHOW)</code> - Anything with "Avengers" in the title, plus Action TV shows<br>
+                  <br>
+                  <strong>New Filter Types:</strong><br>
+                  <code>TAG "Family" AND MOVIE</code> - Movies with the "Family" tag<br>
+                  <code>PARENTALRATING "PG-13" AND GENRE "Horror"</code> - PG-13 horror content<br>
+                  <code>COMMUNITYRATING ">8.5"</code> - Items rated above 8.5<br>
+                  <code>CRITICSRATING ">75" AND GENRE "Drama"</code> - Well-reviewed dramas<br>
+                  <code>PRODUCTIONLOCATION "Germany" OR PRODUCTIONLOCATION "Austria"</code> - German or Austrian content
                 </div>
                 <div id="expression-collections"></div>
               </div>
@@ -736,9 +742,12 @@
           if (openParens !== closeParens) {
             return { valid: false, error: "Mismatched parentheses in expression" };
           }
-          
-          // Check for at least one criteria type
-          const criteriaTypes = ["TITLE", "GENRE", "STUDIO", "ACTOR", "DIRECTOR", "MOVIE", "SHOW"];
+            // Check for at least one criteria type
+          const criteriaTypes = [
+            "TITLE", "GENRE", "STUDIO", "ACTOR", "DIRECTOR", "MOVIE", "SHOW",
+            "TAG", "PARENTALRATING", "RATING", "COMMUNITYRATING", "CRITICSRATING",
+            "PRODUCTIONLOCATION", "LOCATION", "COUNTRY"
+          ];
           let hasCriteria = false;
           
           for (const type of criteriaTypes) {
@@ -747,9 +756,11 @@
               break;
             }
           }
-          
-          if (!hasCriteria) {
-            return { valid: false, error: "Expression must contain at least one criteria (TITLE, GENRE, STUDIO, ACTOR, DIRECTOR, MOVIE, or SHOW)" };
+            if (!hasCriteria) {
+            return { 
+              valid: false, 
+              error: "Expression must contain at least one criteria (TITLE, GENRE, STUDIO, ACTOR, DIRECTOR, TAG, PARENTALRATING, COMMUNITYRATING, CRITICSRATING, PRODUCTIONLOCATION, MOVIE, or SHOW)" 
+            };
           }
           
           return { valid: true };

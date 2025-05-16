@@ -3,8 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 namespace Jellyfin.Plugin.AutoCollections.Configuration
-{
-    // Types of criteria for collections
+{    // Types of criteria for collections
     public enum CriteriaType
     {
         Title = 0,     // Match by title
@@ -13,7 +12,12 @@ namespace Jellyfin.Plugin.AutoCollections.Configuration
         Actor = 3,     // Match by actor
         Director = 4,  // Match by director
         Movie = 5,     // Match only movies
-        Show = 6       // Match only TV shows
+        Show = 6,      // Match only TV shows
+        Tag = 7,       // Match by tag
+        ParentalRating = 8, // Match by parental rating (e.g., PG-13, R)
+        CommunityRating = 9, // Match by community rating (0-10)
+        CriticsRating = 10, // Match by critics rating
+        ProductionLocation = 11 // Match by production country/location
     }
 
     // Token types for expression parsing
@@ -281,10 +285,76 @@ namespace Jellyfin.Plugin.AutoCollections.Configuration
                     tokens.Add(movieToken);
                     continue;
                 }
-                
-                if (TryMatchCriteria(expression, ref position, "SHOW", out var showToken))
+                  if (TryMatchCriteria(expression, ref position, "SHOW", out var showToken))
                 {
                     tokens.Add(showToken);
+                    continue;
+                }
+                
+                // New criteria types
+                if (TryMatchCriteria(expression, ref position, "TAG", out var tagToken))
+                {
+                    tokens.Add(tagToken);
+                    continue;
+                }
+                
+                if (TryMatchCriteria(expression, ref position, "PARENTALRATING", out var parentalRatingToken))
+                {
+                    tokens.Add(parentalRatingToken);
+                    continue;
+                }
+                
+                if (TryMatchCriteria(expression, ref position, "PARENTAL", out var parentalToken))
+                {
+                    tokens.Add(parentalToken);
+                    continue;
+                }
+                
+                if (TryMatchCriteria(expression, ref position, "RATING", out var ratingToken))
+                {
+                    tokens.Add(ratingToken);
+                    continue;
+                }
+                
+                if (TryMatchCriteria(expression, ref position, "COMMUNITYRATING", out var commRatingToken))
+                {
+                    tokens.Add(commRatingToken);
+                    continue;
+                }
+                
+                if (TryMatchCriteria(expression, ref position, "USERRATING", out var userRatingToken))
+                {
+                    tokens.Add(userRatingToken);
+                    continue;
+                }
+                
+                if (TryMatchCriteria(expression, ref position, "CRITICSRATING", out var criticsRatingToken))
+                {
+                    tokens.Add(criticsRatingToken);
+                    continue;
+                }
+                
+                if (TryMatchCriteria(expression, ref position, "CRITICS", out var criticsToken))
+                {
+                    tokens.Add(criticsToken);
+                    continue;
+                }
+                
+                if (TryMatchCriteria(expression, ref position, "PRODUCTIONLOCATION", out var prodLocationToken))
+                {
+                    tokens.Add(prodLocationToken);
+                    continue;
+                }
+                
+                if (TryMatchCriteria(expression, ref position, "LOCATION", out var locationToken))
+                {
+                    tokens.Add(locationToken);
+                    continue;
+                }
+                
+                if (TryMatchCriteria(expression, ref position, "COUNTRY", out var countryToken))
+                {
+                    tokens.Add(countryToken);
                     continue;
                 }
 
@@ -381,8 +451,7 @@ namespace Jellyfin.Plugin.AutoCollections.Configuration
                     position += criteria.Length;
                     
                     token = new Token(TokenType.Criteria);
-                    
-                    switch (criteria.ToUpper())
+                      switch (criteria.ToUpper())
                     {
                         case "TITLE":
                             token.CriteriaType = Configuration.CriteriaType.Title;
@@ -395,6 +464,27 @@ namespace Jellyfin.Plugin.AutoCollections.Configuration
                             break;
                         case "ACTOR":
                             token.CriteriaType = Configuration.CriteriaType.Actor;
+                            break;
+                        case "TAG":
+                            token.CriteriaType = Configuration.CriteriaType.Tag;
+                            break;
+                        case "PARENTALRATING":
+                        case "PARENTAL":
+                        case "RATING":
+                            token.CriteriaType = Configuration.CriteriaType.ParentalRating;
+                            break;
+                        case "COMMUNITYRATING":
+                        case "USERRATING":
+                            token.CriteriaType = Configuration.CriteriaType.CommunityRating;
+                            break;
+                        case "CRITICSRATING":
+                        case "CRITICS":
+                            token.CriteriaType = Configuration.CriteriaType.CriticsRating;
+                            break;
+                        case "PRODUCTIONLOCATION":
+                        case "LOCATION":
+                        case "COUNTRY":
+                            token.CriteriaType = Configuration.CriteriaType.ProductionLocation;
                             break;
                         case "DIRECTOR":
                             token.CriteriaType = Configuration.CriteriaType.Director;

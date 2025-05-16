@@ -917,12 +917,26 @@ namespace Jellyfin.Plugin.AutoCollections
                     // Always false for movies
                     return false;
                     
+                case Configuration.CriteriaType.Tag:
+                    return movie.Tags != null && 
+                           movie.Tags.Any(t => t.Contains(value, comparison));
+                           
+                case Configuration.CriteriaType.ParentalRating:
+                    return !string.IsNullOrEmpty(movie.OfficialRating) && 
+                           movie.OfficialRating.Contains(value, comparison);
+                             case Configuration.CriteriaType.CommunityRating:
+                    return CompareNumericValue(movie.CommunityRating, value);                case Configuration.CriteriaType.CriticsRating:
+                    return CompareNumericValue(movie.CriticRating, value);
+                           
+                case Configuration.CriteriaType.ProductionLocation:
+                    return movie.ProductionLocations != null && 
+                           movie.ProductionLocations.Any(l => l.Contains(value, comparison));
+                    
                 default:
                     return false;
             }
         }
-        
-        // Method to evaluate a criteria for a series
+          // Method to evaluate a criteria for a series
         private bool EvaluateSeriesCriteria(Series series, Configuration.CriteriaType criteriaType, string value, bool caseSensitive)
         {
             StringComparison comparison = caseSensitive 
@@ -975,6 +989,22 @@ namespace Jellyfin.Plugin.AutoCollections
                 case Configuration.CriteriaType.Show:
                     // Always true for series
                     return true;
+                
+                case Configuration.CriteriaType.Tag:
+                    return series.Tags != null && 
+                           series.Tags.Any(t => t.Contains(value, comparison));
+                           
+                case Configuration.CriteriaType.ParentalRating:
+                    return !string.IsNullOrEmpty(series.OfficialRating) && 
+                           series.OfficialRating.Contains(value, comparison);
+                             case Configuration.CriteriaType.CommunityRating:
+                    return CompareNumericValue(series.CommunityRating, value);
+                      case Configuration.CriteriaType.CriticsRating:
+                    return CompareNumericValue(series.CriticRating, value);
+                    
+                case Configuration.CriteriaType.ProductionLocation:
+                    return series.ProductionLocations != null && 
+                           series.ProductionLocations.Any(l => l.Contains(value, comparison));
                     
                 default:
                     return false;
@@ -1074,6 +1104,56 @@ namespace Jellyfin.Plugin.AutoCollections
             {
                 await SetPhotoForCollection(collection);
             }
+        }
+          // Helper method to handle numeric comparisons for ratings
+        private bool CompareNumericValue(float? actualValue, string targetValueString)
+        {
+            if (!actualValue.HasValue)
+                return false;
+                
+            // Remove any surrounding whitespace
+            targetValueString = targetValueString.Trim();
+                
+            try
+            {
+                // Check for comparison operators
+                if (targetValueString.StartsWith(">="))
+                {
+                    if (float.TryParse(targetValueString.Substring(2), out float targetValue))
+                        return actualValue >= targetValue;
+                }
+                else if (targetValueString.StartsWith("<="))
+                {
+                    if (float.TryParse(targetValueString.Substring(2), out float targetValue))
+                        return actualValue <= targetValue;
+                }
+                else if (targetValueString.StartsWith(">"))
+                {
+                    if (float.TryParse(targetValueString.Substring(1), out float targetValue))
+                        return actualValue > targetValue;
+                }
+                else if (targetValueString.StartsWith("<"))
+                {
+                    if (float.TryParse(targetValueString.Substring(1), out float targetValue))
+                        return actualValue < targetValue;
+                }
+                else if (targetValueString.StartsWith("="))
+                {
+                    if (float.TryParse(targetValueString.Substring(1), out float targetValue))
+                        return Math.Abs(actualValue.Value - targetValue) < 0.1f;
+                }
+                else if (float.TryParse(targetValueString, out float targetValue))
+                {
+                    // Default to exact match if no comparison operator
+                    return Math.Abs(actualValue.Value - targetValue) < 0.1f;
+                }
+            }
+            catch (FormatException)
+            {
+                _logger.LogWarning($"Failed to parse '{targetValueString}' as a numeric value for comparison");
+            }
+            
+            return false;
         }
     }
 }
