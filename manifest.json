@@ -2,11 +2,19 @@
     {
         "guid": "06ebf4a9-1326-4327-968d-8da00e1ea2eb",
         "name": "Auto Collections",
-        "overview": "Enables creation of Auto Collections based on Tag",
-        "description": "Enables creation of Auto Collections based on Tag",
+        "overview": "Creates smart collections based on multiple criteria including tags, ratings, and production locations",
+        "description": "Create dynamic collections based on multiple criteria including title, genre, studio, actor, director, tags, parental ratings, community ratings, critics ratings, and production locations. Features powerful boolean expressions and import/export functionality.",
         "owner": "KeksBombe",
         "category": "General",
         "versions": [
+            {
+                "version": "0.0.1.48",
+                "changelog": "- See the full changelog at [GitHub](https://github.com/KeksBombe/jellyfin-plugin-auto-collections-dev/releases/tag/0.0.1.48)\n",
+                "targetAbi": "10.9.9.0",
+                "sourceUrl": "https://github.com/KeksBombe/jellyfin-plugin-auto-collections-dev/releases/download/0.0.1.48/auto-collections-0.0.1.48.zip",
+                "checksum": "b0d39f3185b69a114ca7f6c5bda63e73",
+                "timestamp": "2025-05-16T10:28:42Z"
+            },
             {
                 "version": "0.0.1.46",
                 "changelog": "- See the full changelog at [GitHub](https://github.com/KeksBombe/jellyfin-plugin-auto-collections-dev/releases/tag/0.0.1.46)\n",
